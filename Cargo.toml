@@ -1,0 +1,12 @@
+[package]
+name = "spellbound"
+version = "0.0.1"
+authors = ["Ananda Guneratne <anandaguneratne@gmail.com>"]
+
+[dependencies]
+piston_window = "0.25.0"
+find_folder = "*"
+gfx_device_gl = "0.5.0"
+gfx = "0.7.0"
+piston2d-gfx_graphics = "0.11.0"
+rand = "0.3"
