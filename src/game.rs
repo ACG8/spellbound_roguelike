@@ -11,6 +11,7 @@ use object::Object;
 enum Command {
     None,               //For when game is waiting for player to issue instruction
     Move(isize,isize),
+    Automove, //testing dijkstra map
 }
 
 pub struct Game {
@@ -27,7 +28,8 @@ impl Game {
         Game { 
             player : Object::new(w,"player.png"), 
             command : Command::None,
-            map: Map::new(w,40), }
+            map: Map::new(w,40), 
+        }
     }
 
     pub fn on_load(&mut self, w: &PistonWindow)  {
@@ -49,6 +51,7 @@ impl Game {
         //Handle player action
         match self.command {
             Command::Move(i,j) => self.player.mov(&self.map,i,j),
+            Command::Automove => self.player.automove(&self.map), //for testing dijkstra
             _ => player_acted = false,
         };
 
@@ -71,16 +74,6 @@ impl Game {
             self.map.render(g, view);
             self.player.render(g, view);
 
-            // Text test
-            /*
-            let transform = c.transform.trans(10.0, 100.0);
-            text::Text::new_color([0.0, 1.0, 0.0, 1.0], 32).draw(
-                "Hello world!",
-                glyphs,
-                &c.draw_state,
-                transform, 
-                g,
-            );*/
         });
     }
     pub fn on_input(&mut self, inp: Input) {
@@ -102,6 +95,8 @@ impl Game {
                     Button::Keyboard(Key::NumPad7) => self.command = Command::Move(-1,-1),
                     Button::Keyboard(Key::NumPad8) => self.command = Command::Move(0,-1),
                     Button::Keyboard(Key::NumPad9) => self.command = Command::Move(1,-1),
+                    //Automated movement
+                    Button::Keyboard(Key::O) => self.command = Command::Automove,
                     _ => {}
                 }
             }

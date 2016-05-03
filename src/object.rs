@@ -31,6 +31,13 @@ impl Object {
         }
     }
 
+    pub fn automove(&mut self, map: &Map) {
+        use dijkstra_map::DijkstraMap;
+        let (i,j) = map.get_dijkstra_map(vec![(1,1)]).get_next_step((self.i,self.j));
+        self.i = i;
+        self.j = j;
+    }
+
     pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
         self.sprite.render(self.x(),self.y(),g,view)
         /*

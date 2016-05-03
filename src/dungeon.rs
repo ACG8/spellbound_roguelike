@@ -4,6 +4,14 @@ use gfx_device_gl::{Resources, Output, CommandBuffer};
 use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
 /// A single game level, represented by a vector of vectors, where each vector is of type tile.
+/*
+fn rec_shadowcaster(origin: (usize,usize), min_range: usize, max_range: usize, start_slope: f64,end_slope: f64) -> Vec<(usize,usize)> {
+	//returns a list of coordinates that are in fov
+	//call it with min_range = 1
+	
+}
+*/
+use dijkstra_map::DijkstraMap;
 
 pub struct Map{
 	/// A vector of rows
@@ -13,21 +21,9 @@ pub struct Map{
 }
 
 impl Map {
-	pub fn new(w: &PistonWindow, size: usize) -> Map { //size indicates the width and height of the map.
-		/*let mut rows = vec![];
-		for n in 0..size { // iterate over the rows
-			let mut row = vec![];
-			for m in 0..size { // iterate over the columns
-				if n == 0 || n == size-1 || m == 0 || m == size-1 {
-					row.push( Tile::new(w,Terrain_Type::Wall, m, n) );
-				} else {
-					row.push( Tile::new(w,Terrain_Type::Floor, m, n) );
-				};
-			}
-			rows.push(row);
-		};*/
+	
 
-		// Random map generator goes here
+	pub fn new(w: &PistonWindow, size: usize) -> Map { //size indicates the width and height of the map.
 		Map{
 			grid: generate_dungeon( w, size, 20, 4, 8, 20 ),//rows,
 			size: size,
@@ -44,6 +40,59 @@ impl Map {
 			}
 		}
 	}
+	//Function that returns a dijkstra map given the input goal cells
+	pub fn get_dijkstra_map(&self, goals: Vec<(usize,usize)>) -> DijkstraMap {
+		use dijkstra_map::DijkstraTile;
+		//Create a map of dijkstra tiles
+		let mut map: Vec<Vec<DijkstraTile>> = self.grid.iter().map(
+			|row| row.iter().map(
+				|tile| match tile.is_passable() {
+					true => DijkstraTile::Passable,
+					false => DijkstraTile::Impassable,
+				}
+			).collect()
+		).collect();
+
+		//Add the goals. Only goals on passable ground are added.
+		for (i,j) in goals {
+			match map[j][i] {
+				DijkstraTile::Passable => map[j][i] = DijkstraTile::Goal,
+				_ => (),
+			}
+		};
+
+		//Construct and return the dijkstra map
+		DijkstraMap::new(&map)
+	}
+
+	/*
+
+	pub fn compute_fov(&self, origin: (usize,usize), range: usize) {//-> Vec<(usize,usize)> {
+		// Call recursive FOV finder for each direction
+		//rec_fov(origin)
+		println!("")
+	}
+
+	fn rec_fov(&self,origin: (usize,usize), distance: usize, max_distance: usize, min_slope: f64, max_slope: f64, direction: Dir) -> Vec<(usize,usize)> {
+		// Get an adjusted origin poin 
+		// First, depending on direction, split:
+		match direction {
+			Dir::Left => {
+				//First, find the starting points based on distance
+				let min_j = (min_slope * (- distance as f64) + origin.1 as f64) as isize;
+				let max_j = (max_slope * (- distance as f64) + origin.1 as f64) as isize;
+				let i = -distance as isize + origin.0 as isize;
+				//If i is outside the bounds of the screen, return. Adjust j so that they are not outside the bounds of the screen.
+				if i < 0 || i > self.grid[0].len() as isize { return vec![] };
+
+			}
+
+			Dir::Right => (),
+			Dir::Up => (),
+			Dir::Down => (),
+		} ;
+	}
+	*/
 }
 
 struct Rect {
@@ -52,6 +101,13 @@ struct Rect {
 	y1 : usize,
 	y2 : usize,
 	coord : (usize, usize), //for use in iteration
+}
+
+enum Dir { //enum for directions
+	Left,
+	Right,
+	Up,
+	Down,
 }
 
 impl Rect {
@@ -63,20 +119,22 @@ impl Rect {
 		use rand;
 		let between = Range::new(min,max);
 		let mut rng = rand::thread_rng();
-		Rect {
+		let newrect = Rect {
 			x1: x,
 			y1: y,
 			x2: x + between.ind_sample(&mut rng),
-			y2: x + between.ind_sample(&mut rng),
+			y2: y + between.ind_sample(&mut rng),
 			coord: (x,y),
-		}
-	}/*
-	pub fn overlaps(&self, other: &Rect) -> bool {
-		!( self.x1 > other.x2 || other.x1 > self.x2 || self.y1 > other.y2 || other.y1 > self.y2 )
-	}*/
+		};
+		newrect
+	}
 
-	pub fn touches(&self, other: &Rect) -> bool {
-		!( self.x1 > other.x2 + 1 || other.x1 > self.x2 + 1 || self.y1 > other.y2 + 1 || other.y1 > self.y2 + 1 )
+	pub fn is_within_distance(&self, other: &Rect, distance: usize) -> bool {//checks whether two rects are within given distance apart
+		!( self.x1 > other.x2 + distance || other.x1 > self.x2 + distance || self.y1 > other.y2 + distance || other.y1 > self.y2 + distance )
+	}
+
+	pub fn center(&self) -> (usize,usize) {//returns center of the room
+		((self.x1+self.x2)/2,(self.y1+self.y2)/2)
 	}
 }
 
@@ -85,50 +143,28 @@ impl Iterator for Rect {
 	type Item = (usize,usize);
 
 	fn next(&mut self) -> Option<(usize,usize)> {
-		let value = self.coord;
+		let value = self.coord.clone();
 		match value {
-			(x,y) if x <= self.x2 => {
+			(x,y) if x < self.x2 => {
 				self.coord = (x+1,y);
-				println!("right {}",value.0);
 				Some(value)
 			}
-			(x,y) if y <= self.y2 => {
+			(x,y) if y < self.y2 => {
 				self.coord = (self.x1,y+1);
-				println!("down {}",value.0);
+				Some(value)
+			}
+			(x,y) if x == self.x2 && y == self.y2 => {
+				self.coord = (x+1,y);
 				Some(value)
 			}
 			_ => {
 				self.coord = (self.x1,self.y1);
-				println!("none: {}",value.0);
 				None
 			},
 		}
 	}
 }
-/*
-struct Region { // A contiguous region of coordinates
-	pub coordinates: Vec<(usize,usize)>,
-}
 
-impl Region {
-	pub fn new_empty() -> Region {
-		Region { coordinates: Vec::new() }
-	}
-	pub fn new_merge(reg1:Region,connector:(usize,usize),reg2:Region) -> Region {
-		let coordinates = reg1.coordinates.append(reg2.coordinates);
-		coordinates.push(connector);
-		Region { coordinates: coordinates }
-	}
-	pub fn new_from_room(room:Rect) -> Region {
-		let coordinates = vec![];
-		for c in Room { coordinates.push(c) };
-		Region { coordinates: coordinates }
-	}
-	pub fn new_from_point(coordinate:(usize,usize)) -> Region {
-		Region { coordinates: vec![coordinate] }
-	}
-}
-*/
 fn generate_dungeon(w: &PistonWindow, size: usize, room_attempts: usize, min_room:usize, max_room:usize, extra_connecter_chance: usize) -> Vec< Vec< Tile > > {
 	use rand::distributions::{IndependentSample,Range};
 	use rand;
@@ -152,15 +188,41 @@ fn generate_dungeon(w: &PistonWindow, size: usize, room_attempts: usize, min_roo
 		};
 		let mut room = Rect::new_rand(x,y,min_room,max_room);
 		//Ensure that the rooms don't touch
-		if rooms.iter().fold(true,|acc,r| acc && !room.touches(r)) { rooms.push(room); }
+		if rooms.iter().fold(true,|acc,r| acc && !room.is_within_distance(r,1)) { rooms.push(room); }
+	}
+	let mut regions = vec![];
+	while rooms.len() > 1 {
+		let room = match rooms.pop() {
+			Some(r) => r,
+			None => unreachable!(),
+		};
+		//Select a random room
+		let between = Range::new(0,rooms.len());
+		let mut rng = rand::thread_rng();
+		let room2 = &rooms[between.ind_sample(&mut rng)];
+		//Create two rooms that form a corridor between the rooms
+		match room.x1 < room2.x1 {
+			true => regions.push(Rect::new(room.center().0,room.center().1,room2.x1-room.x1,0)),
+			false => regions.push(Rect::new(room2.center().0,room2.center().1,room.x1-room2.x1,0)),
+		};
+		match room.y1 < room2.y1 {
+			true => regions.push(Rect::new(room.center().0,room.center().1,0,room2.y1-room.y1)),
+			false => regions.push(Rect::new(room2.center().0,room2.center().1,0,room.y1-room2.y1)),
+		};
+		regions.push(room);
+	}
+	match rooms.pop() {
+		Some(room) => regions.push(room),
+		_ => unreachable!(),
 	}
 	// Carve out the rooms
-	for room in rooms {
-		//println!("newroom");
+	for room in regions {
 		for (i,j) in room {
 			rows[j][i] = Tile::new(w,Terrain_Type::Floor, i, j);
 		}
 	}
+	// Carve corridors between the rooms
+
 
 	rows
 }

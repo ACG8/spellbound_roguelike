@@ -9,6 +9,7 @@ mod game;
 mod object;
 mod dungeon;
 mod sprite;
+mod dijkstra_map;
 
 //use piston_window::graphics::*;
 use piston_window::*;
@@ -26,13 +27,6 @@ fn main() {
     let mut game = Game::new(&window);
     game.on_load(&window);
 
-    //Get font/glyphs
-    /*
-    let assets = Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
-    let font = assets.join("Verdana.ttf"); //ref
-    let factory = window.factory.borrow().clone();
-    let mut glyphs = Glyphs::new(font, factory).unwrap();
-    */
     for e in window {
         match e.event {
             Some(Event::Update(upd)) => {
