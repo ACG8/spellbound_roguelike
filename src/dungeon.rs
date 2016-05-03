@@ -11,11 +11,63 @@ fn rec_shadowcaster(origin: (usize,usize), min_range: usize, max_range: usize, s
 	
 }
 */
+
+
+//dirty LOS computer
+
+pub fn fov(map: &Map, x:isize, y:isize, radius: isize) -> Vec<(isize,isize)> {
+	let mut output = vec![];
+	for i in -radius..radius+1 {
+		for j in -radius..radius+1 {
+			if i*i+j*j<radius*radius && los(map,x,y,x+i,y+j) && x+i >= 0 && y+j >=0 { 
+				output.push((x+i,y+j));
+			}
+		}
+	};
+	output
+}
+
+fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> bool {
+	if x1 < 0 || y1 < 0 || x1 >= map.width() as isize || y1 >= map.height() as isize { return false };
+	let dx = x1 - x0;
+	let dy = y1 - y0;
+	if dx == 0 && dy == 0 { return true };
+	let sx = match x0 < x1 {
+		true => 1,
+		false => -1,
+	};
+	let sy = match y0 < y1 {
+		true => 1,
+		false => -1,
+	};
+    // sx and sy are switches that enable us to compute the LOS in a single quarter of x/y plan
+    let mut xnext = x0;
+    let mut ynext = y0;
+    let denom = ((dx * dx + dy * dy) as f64).sqrt();
+    while xnext != x1 || ynext != y1 {
+        // check map bounds here if needed
+        if !map.grid[ynext as usize][xnext as usize].is_transvisible() // or any equivalent
+        {
+            return false
+        }
+        // Line-to-point distance formula < 0.5
+        if ((dy * (xnext - x0 + sx) - dx * (ynext - y0)) as f64).abs() / denom < 0.5 { xnext += sx; }
+            
+        else if ((dy * (xnext - x0) - dx * (ynext - y0 + sy)) as f64).abs() / denom < 0.5 { ynext += sy; }
+        else
+        {
+            xnext += sx;
+            ynext += sy;
+        }
+    }
+    true
+}
+
 use dijkstra_map::DijkstraMap;
 
 pub struct Map{
 	/// A vector of rows
-	grid : Vec< Vec< Tile > >,
+	pub grid : Vec< Vec< Tile > >,
 	size : usize,
 	level : usize,
 }
@@ -33,12 +85,23 @@ impl Map {
 
 	pub fn tile(&self, i: usize, j: usize) -> &Tile { &self.grid[j as usize][i as usize] }
 
-	pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
-		for row in self.grid.iter() {
+	pub fn width(&self) -> usize {
+		self.grid[0].len()
+	}
+
+	pub fn height(&self) -> usize {
+		self.grid.len()
+	}
+
+	pub fn render(&self, i: usize, j:usize, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
+		for coordinate in fov(self,i as isize,j as isize,8) {
+			self.grid[coordinate.1 as usize][coordinate.0 as usize].render(g,view)
+		}
+		/*for row in self.grid.iter() {
 			for tile in row.iter() {
 				tile.render(g,view);
 			}
-		}
+		}*/
 	}
 	//Function that returns a dijkstra map given the input goal cells
 	pub fn get_dijkstra_map(&self, goals: Vec<(usize,usize)>) -> DijkstraMap {

@@ -174,12 +174,17 @@ impl DijkstraMap {
 	}
 	//constructor function to add two maps to make a third
 	
-	pub fn add(map1: &DijkstraMap, map2: &DijkstraMap) -> Dijkstra_Map {
+	pub fn add(map1: &DijkstraMap, map2: &DijkstraMap) -> DijkstraMap {
 		let mut new_map = map1.clone();
 		for j in 0..new_map.map.len() {
 			for i in 0..new_map.map[0].len() {
 				match new_map.map[j][i] {
-					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*scalar),
+					DijkstraTile::Value(n) => {
+						match map2.map[j][i] {
+							DijkstraTile::Value(m) => new_map.map[j][i] = DijkstraTile::Value(n+m),
+							_ => (),
+						}
+					}
 					_ => (),
 				};
 			};

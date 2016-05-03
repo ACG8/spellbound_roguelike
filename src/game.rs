@@ -60,9 +60,19 @@ impl Game {
 
         if player_acted { 
             self.command = Command::None;
-            //do monster things
-            let dmap = self.map.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
-            let dmap = DijkstraMap::mult(&dmap,-1.0);
+            //local fear map
+            let dmapshort = self.map.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
+            let dmapshort = DijkstraMap::mult(&dmapshort,-2.0);
+            //make map of locations 10 tiles away from player
+            let mut goals = vec![];
+            for j in 0..self.map.grid.len() {
+                for i in 0..self.map.grid[0].len() {
+                    if (i as isize - self.player.object.i as isize).abs() >= 10 && (j as isize - self.player.object.j as isize).abs() >= 5 {goals.push((i,j))}
+                }
+            }
+            let dmaplong = self.map.get_dijkstra_map(goals);
+            let dmaplong = DijkstraMap::mult(&dmaplong,1.0);
+            let dmap = DijkstraMap::add(&dmapshort,&dmaplong);
             //Handle monster actions
             for monster in self.monsters.iter_mut() {
             //for testing, create a dijkstra map with the player at the center
@@ -85,7 +95,7 @@ impl Game {
             let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
             //self.player.render(g, center);
 
-            self.map.render(g, view);
+            self.map.render(self.player.object.i, self.player.object.j, g, view);
             self.player.object.render(g, view);
 
             //render monsters
