@@ -3,19 +3,41 @@ use gfx_device_gl::{Resources, Output, CommandBuffer};
 use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
 use dungeon::Map;
+use dijkstra_map::DijkstraMap;
+
+pub enum Behavior {
+    Player,
+    Coward,
+}
+
+pub struct Creature {
+    pub object: Object,
+    pub hp: usize,
+    ai: Behavior,
+}
+
+impl Creature {
+    pub fn new(name: &str, pos:(usize,usize), w:&PistonWindow, graphic: &str, hp:usize, ai:Behavior) -> Creature {
+        Creature {
+            object: Object::new(name,pos,w,graphic),
+            hp: hp,
+            ai: ai,
+        }
+    }
+}
 
 pub struct Object {
-    //x: f64,
-    //y: f64,
-    i: usize,
-    j: usize,
+    name: String,
+    pub i: usize,
+    pub j: usize,
     sprite: Sprite,
 }
 
 #[allow(dead_code)]
 impl Object {
-    pub fn new(w:&PistonWindow,filename: &str) -> Object {
-        Object {i : 1, j: 1, sprite: Sprite::new(w,filename)}
+
+    pub fn new(name:&str, pos:(usize,usize), w:&PistonWindow, filename: &str) -> Object {
+        Object {name:name.to_string(),i : pos.0, j: pos.1, sprite: Sprite::new(w,filename)}
     }
     //Functions to translate between discrete and continuous coordinates. One cell is 32 units.
     pub fn x(&self) -> f64 { (self.i as f64)*32.0 }
@@ -31,9 +53,8 @@ impl Object {
         }
     }
 
-    pub fn automove(&mut self, map: &Map) {
-        use dijkstra_map::DijkstraMap;
-        let (i,j) = map.get_dijkstra_map(vec![(1,1)]).get_next_step((self.i,self.j));
+    pub fn automove(&mut self, dmap: &DijkstraMap) {
+        let (i,j) = dmap.get_next_step((self.i,self.j));
         self.i = i;
         self.j = j;
     }

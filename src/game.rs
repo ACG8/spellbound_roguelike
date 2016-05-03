@@ -4,7 +4,7 @@
 //use gfx_device_gl::Resources;
 use piston_window::*;
 use dungeon::Map;
-use object::Object;
+use object::*;
 //use sprite::Sprite;
 
 
@@ -15,9 +15,10 @@ enum Command {
 }
 
 pub struct Game {
-    player: Object,
+    player: Creature,
     command: Command,
     map: Map,
+    monsters: Vec<Creature>,
     //graphics: HashMap<&'static str,Texture<Resources>>, //Game loads all graphics on startup then stores them here.
 }
 
@@ -26,9 +27,10 @@ pub struct Game {
 impl Game {
     pub fn new(w:&PistonWindow) -> Game {
         Game { 
-            player : Object::new(w,"player.png"), 
+            player : Creature::new("Player",(1,1),w,"player.png",20,Behavior::Player), 
             command : Command::None,
-            map: Map::new(w,40), 
+            map: Map::new(w,40),
+            monsters: vec![Creature::new("Nyancat",(3,3),w,"nyancat.png",20,Behavior::Coward)]
         }
     }
 
@@ -46,18 +48,30 @@ impl Game {
         
     }
     pub fn on_update(&mut self, upd: UpdateArgs) { //This function is called each turn
+        use dijkstra_map::DijkstraMap;
         //Use a bool to check whether the player did anything
         let mut player_acted = true;
         //Handle player action
         match self.command {
-            Command::Move(i,j) => self.player.mov(&self.map,i,j),
-            Command::Automove => self.player.automove(&self.map), //for testing dijkstra
+            Command::Move(i,j) => self.player.object.mov(&self.map,i,j),
+            //Command::Automove => self.player.object.automove(&self.map), //for testing dijkstra
             _ => player_acted = false,
         };
 
-        if player_acted { self.command = Command::None } //Clear the active command
+        if player_acted { 
+            self.command = Command::None;
+            //do monster things
+            let dmap = self.map.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
+            let dmap = DijkstraMap::mult(&dmap,-1.0);
+            //Handle monster actions
+            for monster in self.monsters.iter_mut() {
+            //for testing, create a dijkstra map with the player at the center
+            monster.object.automove(&dmap);
 
-        //Handle monster actions
+        } //Clear the active command
+
+        
+        }
 
     }
     pub fn on_draw(&mut self, ren: RenderArgs, e: PistonWindow) {//, glyphs: &mut Glyphs) {
@@ -68,12 +82,16 @@ impl Game {
             //let view = c
             //let view = c.transform.trans(0.0,0.0);
             //let center = c.transform.trans((ren.width / 2) as f64, (ren.height / 2) as f64);
-            let view = c.transform.trans((ren.width / 2) as f64-self.player.x(),(ren.height / 2) as f64-self.player.y());
+            let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
             //self.player.render(g, center);
 
             self.map.render(g, view);
-            self.player.render(g, view);
+            self.player.object.render(g, view);
 
+            //render monsters
+            for monster in self.monsters.iter() {
+                monster.object.render(g,view);
+            }
         });
     }
     pub fn on_input(&mut self, inp: Input) {

@@ -15,7 +15,7 @@ pub enum DijkstraTile {
 	Impassable,
 	Passable,
 	Goal,
-	Value(isize),
+	Value(f64),
 }
 
 // We will need to duplicate tiles, so we will implement clone here.
@@ -32,6 +32,86 @@ impl Clone for DijkstraTile {
 
 pub struct DijkstraMap {
 	map: Vec<Vec<DijkstraTile>>,
+	//iter_coord: (usize,usize)
+}
+/*
+impl Iterator for DijkstraMap {
+	//We iterate over x,y coordinates (x first)
+	type Item = &mut DijkstraTile;
+
+	fn next(&mut self) -> Option<&mut DijkstraTile> {
+		let (imax,jmax) = (self.map[0].len() - 1,self.map.len() - 1);
+		let iter_coord = self.iter_coord.clone();
+		match iter_coord {
+			(i,j) if i < imax => {
+				self.iter_coord = (i+1,j);
+				Some(&mut self.map[j][i])
+			}
+			(i,j) if j < jmax => {
+				self.iter_coord = (0,j+1);
+				Some(&mut self.map[j][i])
+			}
+			(i,j) if i == imax && j==jmax => {
+				self.iter_coord = (i+1,j+1);
+				Some(&mut self.map[j][i])
+			}
+			_ => {
+				self.iter_coord = (0,0);
+				None
+			},
+		}
+		
+	}
+}
+*/
+/*
+impl IntoIterator for DijkstraMap {
+	type Item = &mut DijkstraTile;
+	type IntoIter = DijMapIntoIter;
+
+	fn into_iter(self) -> Self::IntoIter {
+		DijMapIntoIter { dmap: self, iter_coord: (0,0) }
+	}
+}
+
+pub struct DijMapIntoIter {
+	dmap: DijkstraMap,
+	iter_coord: (usize,usize),
+}
+
+impl Iterator for DijMapIntoIter {
+	//We iterate over x,y coordinates (x first)
+	type Item = &mut DijkstraTile;
+
+	fn next(&mut self) -> Option<&mut DijkstraTile> {
+		let (imax,jmax) = (self.dmap.map[0].len() - 1,self.dmap.map.len() - 1);
+		let iter_coord = self.iter_coord.clone();
+		match iter_coord {
+			(i,j) if i < imax => {
+				self.iter_coord = (i+1,j);
+				Some(self.dmap.map[j][i])
+			}
+			(i,j) if j < jmax => {
+				self.iter_coord = (0,j+1);
+				Some(self.dmap.map[j][i])
+			}
+			(i,j) if i == imax && j==jmax => {
+				self.iter_coord = (i+1,j+1);
+				Some(self.dmap.map[j][i])
+			}
+			_ => {
+				//self.iter_coord = (0,0);
+				None
+			},
+		}
+		
+	}
+}
+*/
+impl Clone for DijkstraMap {
+	fn clone(&self) -> DijkstraMap {
+		DijkstraMap { map: self.map.clone()}
+	}
 }
 
 impl DijkstraMap {
@@ -61,7 +141,7 @@ impl DijkstraMap {
 			// First, iterate over current nodes
 			for (i,j) in current_nodes {
 				//Set the corresponding output to a tile with value distance
-				output[j][i] = DijkstraTile::Value(distance);
+				output[j][i] = DijkstraTile::Value(distance as f64);
 				// Then move all adjacent nodes from unvisited to next_nodes
 				for (i2,j2) in unvisited.clone() { if (i as isize - i2 as isize).abs() <= 1 && (j as isize - j2 as isize ).abs() <= 1 { next_nodes.push((i2,j2)) } };
 				unvisited.retain(|&(i2,j2)|(i as isize -i2 as isize ).abs() > 1 || (j as isize - j2 as isize ).abs() > 1);
@@ -90,16 +170,35 @@ impl DijkstraMap {
 		*/
 
 		// Return a dijkstra map
-		DijkstraMap { map: output }
+		DijkstraMap { map: output}
 	}
 	//constructor function to add two maps to make a third
-	/*
-	pub fn add(map1: &Dijkstra_Map, map2: &Dijkstra_Map) -> Dijkstra_Map {
-
+	
+	pub fn add(map1: &DijkstraMap, map2: &DijkstraMap) -> Dijkstra_Map {
+		let mut new_map = map1.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*scalar),
+					_ => (),
+				};
+			};
+		};
+		new_map
 	}
 	//constructor function to scale a map
-	pub fn mult(map: &Dijkstra_Map, scalar: isize) -> Dijkstra_Map {
-	}*/
+	pub fn mult(map: &DijkstraMap, scalar: f64) -> DijkstraMap {
+		let mut new_map = map.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*scalar),
+					_ => (),
+				};
+			};
+		};
+		new_map
+	}
 	// Function to determine where an object should next step on the map
 	pub fn get_next_step(&self, coordinates:(usize,usize)) -> (usize,usize) {
 		// by default, next step is to do nothing
