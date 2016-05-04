@@ -3,7 +3,7 @@
 //use std::collections::HashMap;
 //use gfx_device_gl::Resources;
 use piston_window::*;
-use dungeon::Map;
+use dungeon::*;
 use object::*;
 //use sprite::Sprite;
 
@@ -54,7 +54,10 @@ impl Game {
         //Handle player action
         match self.command {
             Command::Move(i,j) => self.player.object.mov(&self.map,i,j),
-            //Command::Automove => self.player.object.automove(&self.map), //for testing dijkstra
+            Command::Automove => {
+                let dmap = self.map.get_dijkstra_map(vec![(1,1)]);
+                self.player.object.automove(&dmap)
+            }, //for testing dijkstra
             _ => player_acted = false,
         };
 
@@ -63,16 +66,30 @@ impl Game {
             //local fear map
             let dmapshort = self.map.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
             let dmapshort = DijkstraMap::mult(&dmapshort,-2.0);
-            //make map of locations 10 tiles away from player
+            //make map of unseen squares
             let mut goals = vec![];
             for j in 0..self.map.grid.len() {
                 for i in 0..self.map.grid[0].len() {
-                    if (i as isize - self.player.object.i as isize).abs() >= 10 && (j as isize - self.player.object.j as isize).abs() >= 5 {goals.push((i,j))}
+                    match los(&self.map,self.player.object.i as isize,self.player.object.j as isize,i as isize,j as isize) {
+                        Some((x,y)) if x==i && y==j => (),
+                        _ => goals.push((i,j)),
+                    }
+                    //if !los(&self.map,self.player.object.i as isize,self.player.object.j as isize,i as isize,j as isize) {}
+                }
+            }
+            //make map of locations 10 tiles away from player
+            let dmapfov= self.map.get_dijkstra_map(goals);
+            let dmapfov = DijkstraMap::mult(&dmapfov,0.5);
+            let mut goals = vec![];
+            for j in 0..self.map.grid.len() {
+                for i in 0..self.map.grid[0].len() {
+                    if (i as isize - self.player.object.i as isize).abs() >= 10 && (j as isize - self.player.object.j as isize).abs() >= 6 {goals.push((i,j))}
                 }
             }
             let dmaplong = self.map.get_dijkstra_map(goals);
-            let dmaplong = DijkstraMap::mult(&dmaplong,1.0);
+            let dmaplong = DijkstraMap::mult(&dmaplong,0.5);
             let dmap = DijkstraMap::add(&dmapshort,&dmaplong);
+            let dmap = DijkstraMap::add(&dmap,&dmapfov);
             //Handle monster actions
             for monster in self.monsters.iter_mut() {
             //for testing, create a dijkstra map with the player at the center

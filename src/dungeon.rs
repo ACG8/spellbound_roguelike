@@ -15,23 +15,27 @@ fn rec_shadowcaster(origin: (usize,usize), min_range: usize, max_range: usize, s
 
 //dirty LOS computer
 
-pub fn fov(map: &Map, x:isize, y:isize, radius: isize) -> Vec<(isize,isize)> {
+pub fn fov(map: &Map, x:isize, y:isize, radius: isize) -> Vec<(usize,usize)> {
 	let mut output = vec![];
 	for i in -radius..radius+1 {
 		for j in -radius..radius+1 {
-			if i*i+j*j<radius*radius && los(map,x,y,x+i,y+j) && x+i >= 0 && y+j >=0 { 
-				output.push((x+i,y+j));
+			if i*i+j*j<radius*radius { 
+				match los(map,x,y,x+i,y+j) {
+					Some((a,b)) => output.push((a,b)),
+					_ => (),
+				}
+				
 			}
 		}
 	};
 	output
 }
 
-fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> bool {
-	if x1 < 0 || y1 < 0 || x1 >= map.width() as isize || y1 >= map.height() as isize { return false };
+pub fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> Option<(usize,usize)> {
+	if x1 < 0 || y1 < 0 || x1 >= map.width() as isize || y1 >= map.height() as isize { return None };
 	let dx = x1 - x0;
 	let dy = y1 - y0;
-	if dx == 0 && dy == 0 { return true };
+	if dx == 0 && dy == 0 { return Some((x0 as usize,y0 as usize)) };
 	let sx = match x0 < x1 {
 		true => 1,
 		false => -1,
@@ -48,7 +52,7 @@ fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> bool {
         // check map bounds here if needed
         if !map.grid[ynext as usize][xnext as usize].is_transvisible() // or any equivalent
         {
-            return false
+            return Some((xnext as usize, ynext as usize))
         }
         // Line-to-point distance formula < 0.5
         if ((dy * (xnext - x0 + sx) - dx * (ynext - y0)) as f64).abs() / denom < 0.5 { xnext += sx; }
@@ -60,7 +64,7 @@ fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> bool {
             ynext += sy;
         }
     }
-    true
+    Some((x1 as usize, y1 as usize))
 }
 
 use dijkstra_map::DijkstraMap;
@@ -95,7 +99,7 @@ impl Map {
 
 	pub fn render(&self, i: usize, j:usize, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
 		for coordinate in fov(self,i as isize,j as isize,8) {
-			self.grid[coordinate.1 as usize][coordinate.0 as usize].render(g,view)
+			self.grid[coordinate.1][coordinate.0].render(g,view)
 		}
 		/*for row in self.grid.iter() {
 			for tile in row.iter() {
