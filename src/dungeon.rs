@@ -131,35 +131,6 @@ impl Map {
 		//Construct and return the dijkstra map
 		DijkstraMap::new(&map)
 	}
-
-	/*
-
-	pub fn compute_fov(&self, origin: (usize,usize), range: usize) {//-> Vec<(usize,usize)> {
-		// Call recursive FOV finder for each direction
-		//rec_fov(origin)
-		println!("")
-	}
-
-	fn rec_fov(&self,origin: (usize,usize), distance: usize, max_distance: usize, min_slope: f64, max_slope: f64, direction: Dir) -> Vec<(usize,usize)> {
-		// Get an adjusted origin poin 
-		// First, depending on direction, split:
-		match direction {
-			Dir::Left => {
-				//First, find the starting points based on distance
-				let min_j = (min_slope * (- distance as f64) + origin.1 as f64) as isize;
-				let max_j = (max_slope * (- distance as f64) + origin.1 as f64) as isize;
-				let i = -distance as isize + origin.0 as isize;
-				//If i is outside the bounds of the screen, return. Adjust j so that they are not outside the bounds of the screen.
-				if i < 0 || i > self.grid[0].len() as isize { return vec![] };
-
-			}
-
-			Dir::Right => (),
-			Dir::Up => (),
-			Dir::Down => (),
-		} ;
-	}
-	*/
 }
 
 struct Rect {
