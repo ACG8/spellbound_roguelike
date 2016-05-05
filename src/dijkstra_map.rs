@@ -172,38 +172,7 @@ impl DijkstraMap {
 		// Return a dijkstra map
 		DijkstraMap { map: output}
 	}
-	//constructor function to add two maps to make a third
-	
-	pub fn add(map1: &DijkstraMap, map2: &DijkstraMap) -> DijkstraMap {
-		let mut new_map = map1.clone();
-		for j in 0..new_map.map.len() {
-			for i in 0..new_map.map[0].len() {
-				match new_map.map[j][i] {
-					DijkstraTile::Value(n) => {
-						match map2.map[j][i] {
-							DijkstraTile::Value(m) => new_map.map[j][i] = DijkstraTile::Value(n+m),
-							_ => (),
-						}
-					}
-					_ => (),
-				};
-			};
-		};
-		new_map
-	}
-	//constructor function to scale a map
-	pub fn mult(map: &DijkstraMap, scalar: f64) -> DijkstraMap {
-		let mut new_map = map.clone();
-		for j in 0..new_map.map.len() {
-			for i in 0..new_map.map[0].len() {
-				match new_map.map[j][i] {
-					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*scalar),
-					_ => (),
-				};
-			};
-		};
-		new_map
-	}
+
 	// Function to determine where an object should next step on the map
 	pub fn get_next_step(&self, coordinates:(usize,usize)) -> (usize,usize) {
 		// by default, next step is to do nothing
@@ -236,5 +205,171 @@ impl DijkstraMap {
 		};
 		// Return the best coordinates
 		next_step
+	}
+}
+
+
+/*
+	Here we define infix addition and multiplication for dijkstra maps. We want to allow for the ability to
+	operate on dijkstra maps both destructively (by passing the map itself) or non-destructively (by passing 
+	a reference). This requires a total of 8 definitions, four for each operation.
+*/
+
+///Infix multiplication definition
+
+use std::ops::Mul;
+impl <'a> Mul<&'a DijkstraMap> for f64 {
+	type Output = DijkstraMap;
+
+	fn mul (self, rhs: &'a DijkstraMap) -> DijkstraMap {
+		let mut new_map = rhs.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*self),
+					_ => (),
+				};
+			};
+		};
+		new_map
+	}
+}
+
+impl <'a>Mul<f64> for &'a DijkstraMap {
+	type Output = DijkstraMap;
+
+	fn mul (self, rhs: f64) -> DijkstraMap {
+		let mut new_map = self.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*rhs),
+					_ => (),
+				};
+			};
+		};
+		new_map
+	}
+}
+
+impl  Mul<DijkstraMap> for f64 {
+	type Output = DijkstraMap;
+
+	fn mul (self, rhs: DijkstraMap) -> DijkstraMap {
+		let mut new_map = rhs.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => new_map.map[j][i] = DijkstraTile::Value(n*self),
+					_ => (),
+				};
+			};
+		};
+		new_map
+	}
+}
+
+impl Mul<f64> for DijkstraMap {
+	type Output = DijkstraMap;
+
+	fn mul (mut self, rhs: f64) -> DijkstraMap {
+		for j in 0..self.map.len() {
+			for i in 0..self.map[0].len() {
+				match self.map[j][i] {
+					DijkstraTile::Value(n) => self.map[j][i] = DijkstraTile::Value(n*rhs),
+					_ => (),
+				};
+			};
+		};
+		self
+	}
+}
+
+///Infix addition definition
+use std::ops::Add;
+
+impl <'a,'b>Add<&'a DijkstraMap> for &'b DijkstraMap {
+	type Output = DijkstraMap;
+
+	fn add(self,rhs: &'a DijkstraMap) -> DijkstraMap {
+		let mut new_map = self.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => {
+						match rhs.map[j][i] {
+							DijkstraTile::Value(m) => new_map.map[j][i] = DijkstraTile::Value(n+m),
+							_ => (),
+						}
+					}
+					_ => (),
+				};
+			};
+		};
+		new_map
+	}
+}
+
+impl <'a>Add<&'a DijkstraMap> for DijkstraMap {
+	type Output = DijkstraMap;
+
+	fn add(mut self,rhs: &'a DijkstraMap) -> DijkstraMap {
+		for j in 0..self.map.len() {
+			for i in 0..self.map[0].len() {
+				match self.map[j][i] {
+					DijkstraTile::Value(n) => {
+						match rhs.map[j][i] {
+							DijkstraTile::Value(m) => self.map[j][i] = DijkstraTile::Value(n+m),
+							_ => (),
+						}
+					}
+					_ => (),
+				};
+			};
+		};
+		self
+	}
+}
+
+impl <'a>Add<DijkstraMap> for &'a DijkstraMap {
+	type Output = DijkstraMap;
+
+	fn add(self,rhs: DijkstraMap) -> DijkstraMap {
+		let mut new_map = self.clone();
+		for j in 0..new_map.map.len() {
+			for i in 0..new_map.map[0].len() {
+				match new_map.map[j][i] {
+					DijkstraTile::Value(n) => {
+						match rhs.map[j][i] {
+							DijkstraTile::Value(m) => new_map.map[j][i] = DijkstraTile::Value(n+m),
+							_ => (),
+						}
+					}
+					_ => (),
+				};
+			};
+		};
+		new_map
+	}
+}
+
+impl Add<DijkstraMap> for DijkstraMap {
+	type Output = DijkstraMap;
+
+	fn add(mut self,rhs: DijkstraMap) -> DijkstraMap {
+		for j in 0..self.map.len() {
+			for i in 0..self.map[0].len() {
+				match self.map[j][i] {
+					DijkstraTile::Value(n) => {
+						match rhs.map[j][i] {
+							DijkstraTile::Value(m) => self.map[j][i] = DijkstraTile::Value(n+m),
+							_ => (),
+						}
+					}
+					_ => (),
+				};
+			};
+		};
+		self
 	}
 }
