@@ -106,15 +106,21 @@ impl Map {
 		self.grid.len()
 	}
 
-	pub fn render(&self, i: usize, j:usize, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
-		for coordinate in fov(self,i as isize,j as isize,14) {
-			self.grid[coordinate.1][coordinate.0].render(g,view)
+	pub fn render(&mut self, i: usize, j:usize, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
+		//first, wipe all tiles from vision
+		for row in self.grid.iter_mut() {
+			for tile in row.iter_mut() {
+				tile.unsee();
+			}
 		}
-		/*for row in self.grid.iter() {
+		//Then, mark all tiles in fov as visible and explored
+		for coordinate in fov(self,i as isize,j as isize,14) { self.grid[coordinate.1][coordinate.0].see(); }
+		// Now render all tiles
+		for row in self.grid.iter() {
 			for tile in row.iter() {
 				tile.render(g,view);
 			}
-		}*/
+		}
 	}
 	//Function that returns a dijkstra map given the input goal cells
 	pub fn get_dijkstra_map(&self, goals: Vec<(usize,usize)>) -> DijkstraMap {
@@ -270,7 +276,7 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 				//Then we randomly place up to 2 doors and 1 window on the new wall
 				//First, get a vector of even locations that are free
 				let mut locations = vec![];
-				let mut terrains = vec![TerrainType::Door,TerrainType::Door,TerrainType::Window];
+				let mut terrains = vec![TerrainType::Window,TerrainType::Door,TerrainType::Door];
 				for x in x0+2..x1-2 { if x%2==0 { locations.push(x) } };
 				//Then shuffle it. Pop the first three elements (up to) and turn them into doors and a window
 				rand::thread_rng().shuffle(&mut locations);
@@ -365,6 +371,8 @@ pub struct Tile {
 	sprite: Sprite,
 	passable : bool,	//can you move onto it?
 	transvisible: bool,	//can you see through it?
+	visible: bool,	// can it be seen RIGHT NOW?
+	explored: bool, //has it been seen before?
     pub i: usize,
     pub j: usize,
 }
@@ -377,6 +385,8 @@ impl Tile {
 				sprite: Sprite::new(w,"wall.png"),
 				passable : false,
 				transvisible: false,
+				visible: false,
+				explored: false,
 			    i: i,
 			    j: j,
 			},
@@ -385,6 +395,8 @@ impl Tile {
 				sprite: Sprite::new(w,"floor.png"),
 				passable : true,
 				transvisible: true,
+				visible: false,
+				explored: false,
 			    i: i,
 			    j: j,
 			},
@@ -393,6 +405,8 @@ impl Tile {
 				sprite: Sprite::new(w,"door.png"),
 				passable : true,
 				transvisible: false,
+				visible: false,
+				explored: false,
 			    i: i,
 			    j: j,
 			},
@@ -401,14 +415,25 @@ impl Tile {
 				sprite: Sprite::new(w,"window.png"),
 				passable : false,
 				transvisible: true,
+				visible: false,
+				explored: false,
 			    i: i,
 			    j: j,
 			},
 		}
 	}
 	pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
-		self.sprite.render(self.x(),self.y(),g,view)
+		//if is inlineofsight
+		if self.visible { self.sprite.render(self.x(),self.y(),g,view) }
+		else if self.explored {
+			self.sprite.render(self.x(),self.y(),g,view);
+			rectangle([0.0, 0.0, 0.0, 0.5], rectangle::square(0.0, 0.0, 32.0), view.trans(self.x(),self.y()), g); 
+		}
+		//else if self.explored render with rectangle over it
     }
+
+    pub fn see(&mut self) { self.visible = true; self.explored = true }
+    pub fn unsee(&mut self) { self.visible = false; }
 
     fn x(&self) -> f64 { (self.i as f64)*32.0 }
     fn y(&self) -> f64 { (self.j as f64)*32.0 }
