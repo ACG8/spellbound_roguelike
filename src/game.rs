@@ -35,17 +35,8 @@ impl Game {
     }
 
     pub fn on_load(&mut self, w: &PistonWindow)  {
-
-        //Load all the graphics
-        //self.graphics.insert("player",load_sprite(w, "player.png"));
-        //self.graphics.insert("wall",load_sprite(w, "wall.png"));
-        
-        //self.player.set_sprite(load_sprite(w,"player.png"));
-        /*match self.graphics.get("player") {
-            Some(sprite) => self.player.set_sprite(sprite.copy()),
-            _ => unreachable!(),
-        }*/
-        
+        //Initialize vision
+        self.map.update_vision((self.player.object.i, self.player.object.j));        
     }
     pub fn on_update(&mut self, upd: UpdateArgs) { //This function is called each turn
         use dijkstra_map::DijkstraMap;
@@ -61,8 +52,11 @@ impl Game {
             _ => player_acted = false,
         };
 
-        if player_acted { 
+        if player_acted {
+            // Time will now advance by one step.
             self.command = Command::None;
+            // First, recompute vision
+            self.map.update_vision((self.player.object.i, self.player.object.j));
             //local fear map
             let dmapshort = self.map.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)])*(-2.0);
             //make map of unseen squares
@@ -110,7 +104,7 @@ impl Game {
             let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
             //self.player.render(g, center);
 
-            self.map.render(self.player.object.i, self.player.object.j, g, view);
+            self.map.render(g, view);
             self.player.object.render(g, view, &self.map);
 
             //render monsters

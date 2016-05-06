@@ -1,19 +1,12 @@
+//!Definitions for the entities making up the dungeon as a whole and its tiles
+
 use piston_window::*;
 use rand::*;
 use gfx_device_gl::{Resources, Output, CommandBuffer};
 use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
-/// A single game level, represented by a vector of vectors, where each vector is of type tile.
-/*
-fn rec_shadowcaster(origin: (usize,usize), min_range: usize, max_range: usize, start_slope: f64,end_slope: f64) -> Vec<(usize,usize)> {
-	//returns a list of coordinates that are in fov
-	//call it with min_range = 1
-	
-}
-*/
 
-
-//dirty LOS computer
+///A quick and dirty LOS computation algorithm. Draws a line to each cell being checked separately.
 
 pub fn fov(map: &Map, x:isize, y:isize, radius: isize) -> Vec<(usize,usize)> {
 	let mut output = vec![];
@@ -90,23 +83,19 @@ impl Map {
 			grid.push(row);
 		}
 		Map{
-			grid: grid,//generate_dungeon( w, size, 20, 4, 8, 20 ),//rows,
+			grid: grid,
 			size: size,
 			level: 0,
 		}
 	}
 
+	///Functions to retrive information
 	pub fn tile(&self, i: usize, j: usize) -> &Tile { &self.grid[j as usize][i as usize] }
+	pub fn width(&self) -> usize { self.grid[0].len() }
+	pub fn height(&self) -> usize { self.grid.len() }
 
-	pub fn width(&self) -> usize {
-		self.grid[0].len()
-	}
-
-	pub fn height(&self) -> usize {
-		self.grid.len()
-	}
-
-	pub fn render(&mut self, i: usize, j:usize, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
+	pub fn update_vision(&mut self, origin: (usize,usize)) {
+		let (i,j) = origin;
 		//first, wipe all tiles from vision
 		for row in self.grid.iter_mut() {
 			for tile in row.iter_mut() {
@@ -115,7 +104,9 @@ impl Map {
 		}
 		//Then, mark all tiles in fov as visible and explored
 		for coordinate in fov(self,i as isize,j as isize,14) { self.grid[coordinate.1][coordinate.0].see(); }
-		// Now render all tiles
+	}
+
+	pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
 		for row in self.grid.iter() {
 			for tile in row.iter() {
 				tile.render(g,view);
@@ -202,7 +193,7 @@ impl Iterator for Rect {
 				self.coord = (x+1,y);
 				Some(value)
 			}
-			(x,y) if y < self.y2 => {
+			(_,y) if y < self.y2 => {
 				self.coord = (self.x1,y+1);
 				Some(value)
 			}
@@ -239,11 +230,8 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 	/// The recursion terminates once the rectangles reach size 3.
 	/// Lines are only drawn on even numbered rows/columns
 	fn rec_split(d: &mut Vec<Vec<TerrainType>>, x0:usize, x1:usize, y0:usize, y1:usize) {
-		use rand::distributions::{IndependentSample,Range};
 		use rand;
-
-		let width = x1-x0+1;
-		let height = y1-y0+1;
+		let (width,height) = (x1-x0+1,y1-y0+1);
 		let mut terrains = vec![TerrainType::Window,TerrainType::Door,TerrainType::Door];
 		let mut locations = vec![];
 		let mut rng = rand::thread_rng();
@@ -254,12 +242,10 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 		// Split rectangle across longer axis
 		match width < height {
 			true => { // draw horizontal line. First, select a random row
-				//Create rng
-				let range = Range::new(1,height/2-1);
 				let mut row = y0+4;
 				//Select a point.
 				for y in y0+2..y1-2 { if y%2==0 { splitpoints.push(y) } };
-				rand::thread_rng().shuffle(&mut splitpoints);
+				rng.shuffle(&mut splitpoints);
 				loop {
 					match splitpoints.pop() {
 						Some(y) => match (d[y][x0].clone(),d[y][x1].clone()) {
@@ -281,7 +267,7 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 				
 				for x in x0+2..x1-2 { if x%2==0 { locations.push(x) } };
 				//Then shuffle it. Pop the first three elements (up to) and turn them into doors and a window
-				rand::thread_rng().shuffle(&mut locations);
+				rng.shuffle(&mut locations);
 				for _ in 0..3 {
 					let terrain_type = match terrains.pop() {
 						Some(t) => t,
@@ -298,9 +284,6 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 				rec_split(d, x0, x1, row, y1);
 			}
 			false => { // draw vertical line. First, select a random column
-				//Create rng
-				let range = Range::new(1,width/2-1);
-				
 				let mut column = x0 + 4;
 				//Select a point.
 				for x in x0+2..x1-2 { if x%2==0 { splitpoints.push(x) } };
@@ -378,6 +361,23 @@ pub struct Tile {
 
 impl Tile {
 	pub fn new(w: &PistonWindow, terrain: TerrainType, i:usize, j: usize) -> Tile {
+		let (name,sprite,passable,transvisible) = match terrain {
+			TerrainType::Wall => ("wall".to_string(),Sprite::new(w,"wall.png"),false,false),
+			TerrainType::Floor => ("floor".to_string(),Sprite::new(w,"floor.png"),true,true),
+			TerrainType::Door => ("door".to_string(), Sprite::new(w,"door.png"), true, false),
+			TerrainType::Window => ("window".to_string(), Sprite::new(w,"window.png"), false, true),
+			};
+		Tile {
+				name : name,
+				sprite: sprite,
+				passable : passable,
+				transvisible: transvisible,
+				visible: false,
+				explored: false,
+			    i: i,
+			    j: j,
+		}
+	}/*
 		match terrain {
 			TerrainType::Wall => Tile {
 				name : "wall".to_string(),
@@ -420,7 +420,7 @@ impl Tile {
 			    j: j,
 			},
 		}
-	}
+	}*/
 	pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
 		//if is inlineofsight
 		if self.visible { self.sprite.render(self.x(),self.y(),g,view) }
