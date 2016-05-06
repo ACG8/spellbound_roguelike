@@ -433,6 +433,7 @@ impl Tile {
 
     pub fn see(&mut self) { self.visible = true; self.explored = true }
     pub fn unsee(&mut self) { self.visible = false; }
+    pub fn visible(&self) -> bool { self.visible }
 
     fn x(&self) -> f64 { (self.i as f64)*32.0 }
     fn y(&self) -> f64 { (self.j as f64)*32.0 }

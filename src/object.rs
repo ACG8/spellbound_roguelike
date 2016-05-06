@@ -53,14 +53,18 @@ impl Object {
         }
     }
 
+    pub fn visible(&self, map: &Map) -> bool {
+        map.tile(self.i,self.j).visible()
+    }
+
     pub fn automove(&mut self, dmap: &DijkstraMap) {
         let (i,j) = dmap.get_next_step((self.i,self.j));
         self.i = i;
         self.j = j;
     }
 
-    pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
-        self.sprite.render(self.x(),self.y(),g,view)
+    pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d, map: &Map) {
+        if self.visible(map) {self.sprite.render(self.x(),self.y(),g,view)}
         /*
         let square = rectangle::square(0.0, 0.0, 100.0);
         let red = [1.0, 0.0, 0.0, 1.0];

@@ -111,11 +111,11 @@ impl Game {
             //self.player.render(g, center);
 
             self.map.render(self.player.object.i, self.player.object.j, g, view);
-            self.player.object.render(g, view);
+            self.player.object.render(g, view, &self.map);
 
             //render monsters
             for monster in self.monsters.iter() {
-                monster.object.render(g,view);
+                monster.object.render(g,view,&self.map);
             }
         });
     }
