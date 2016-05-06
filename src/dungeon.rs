@@ -244,18 +244,20 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 
 		let width = x1-x0+1;
 		let height = y1-y0+1;
+		let mut terrains = vec![TerrainType::Window,TerrainType::Door,TerrainType::Door];
+		let mut locations = vec![];
+		let mut rng = rand::thread_rng();
+		let mut splitpoints = vec![];
 		// First, exit if the rectangle is too small
 		if width <= 5 || height <= 5 { return; }
-		// Split rectangle across longer axis
 
+		// Split rectangle across longer axis
 		match width < height {
 			true => { // draw horizontal line. First, select a random row
 				//Create rng
 				let range = Range::new(1,height/2-1);
-				let mut rng = rand::thread_rng();
 				let mut row = y0+4;
 				//Select a point.
-				let mut splitpoints = vec![];
 				for y in y0+2..y1-2 { if y%2==0 { splitpoints.push(y) } };
 				rand::thread_rng().shuffle(&mut splitpoints);
 				loop {
@@ -275,8 +277,8 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 				}
 				//Then we randomly place up to 2 doors and 1 window on the new wall
 				//First, get a vector of even locations that are free
-				let mut locations = vec![];
-				let mut terrains = vec![TerrainType::Window,TerrainType::Door,TerrainType::Door];
+				
+				
 				for x in x0+2..x1-2 { if x%2==0 { locations.push(x) } };
 				//Then shuffle it. Pop the first three elements (up to) and turn them into doors and a window
 				rand::thread_rng().shuffle(&mut locations);
@@ -298,10 +300,9 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 			false => { // draw vertical line. First, select a random column
 				//Create rng
 				let range = Range::new(1,width/2-1);
-				let mut rng = rand::thread_rng();
+				
 				let mut column = x0 + 4;
 				//Select a point.
-				let mut splitpoints = vec![];
 				for x in x0+2..x1-2 { if x%2==0 { splitpoints.push(x) } };
 				rand::thread_rng().shuffle(&mut splitpoints);
 				loop {
@@ -321,8 +322,6 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 				}
 				//Then we randomly place up to 2 doors and 1 window on the new wall
 				//First, get a vector of even locations that are free
-				let mut locations = vec![];
-				let mut terrains = vec![TerrainType::Door,TerrainType::Door,TerrainType::Window];
 				for y in y0+2..y1-2 { if y%2==0 { locations.push(y) } };
 				//Then shuffle it. Pop the first three elements (up to) and turn them into doors and a window
 				rand::thread_rng().shuffle(&mut locations);
