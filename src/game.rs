@@ -29,7 +29,7 @@ impl Game {
         Game { 
             player : Creature::new("Player",(1,1),w,"player.png",20,Behavior::Player), 
             command : Command::None,
-            map: Map::new(w,40),
+            map: Map::new(w,42),
             monsters: vec![Creature::new("Nyancat",(3,3),w,"nyancat.png",20,Behavior::Coward)]
         }
     }

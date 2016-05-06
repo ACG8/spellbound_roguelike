@@ -50,7 +50,7 @@ pub fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> Option<(usize,u
     let denom = ((dx * dx + dy * dy) as f64).sqrt();
     while xnext != x1 || ynext != y1 {
         // check map bounds here if needed
-        if !map.grid[ynext as usize][xnext as usize].is_transvisible() // or any equivalent
+        if !map.grid[ynext as usize][xnext as usize].is_transvisible() && !(xnext==x0 && ynext==y0) // or any equivalent
         {
             return Some((xnext as usize, ynext as usize))
         }
@@ -80,8 +80,17 @@ impl Map {
 	
 
 	pub fn new(w: &PistonWindow, size: usize) -> Map { //size indicates the width and height of the map.
+		let terrain = generate_fractal_dungeon(size,size);
+		let mut grid = vec![];
+		for j in 0..terrain.len() {
+			let mut row = vec![];
+			for i in 0..terrain[j].len() {
+				row.push( Tile::new(w,terrain[j][i].clone(),i,j) );
+			}
+			grid.push(row);
+		}
 		Map{
-			grid: generate_dungeon( w, size, 20, 4, 8, 20 ),//rows,
+			grid: grid,//generate_dungeon( w, size, 20, 4, 8, 20 ),//rows,
 			size: size,
 			level: 0,
 		}
@@ -98,7 +107,7 @@ impl Map {
 	}
 
 	pub fn render(&self, i: usize, j:usize, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
-		for coordinate in fov(self,i as isize,j as isize,8) {
+		for coordinate in fov(self,i as isize,j as isize,14) {
 			self.grid[coordinate.1][coordinate.0].render(g,view)
 		}
 		/*for row in self.grid.iter() {
@@ -203,73 +212,151 @@ impl Iterator for Rect {
 	}
 }
 
-fn generate_dungeon(w: &PistonWindow, size: usize, room_attempts: usize, min_room:usize, max_room:usize, extra_connecter_chance: usize) -> Vec< Vec< Tile > > {
-	use rand::distributions::{IndependentSample,Range};
-	use rand;
-	// First, fill the dungeon with solid tiles
-	let mut rows = vec![];
-		for n in 0..size { // iterate over the rows
+
+fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
+	//Initialize dungeon to walls with floor in middle
+	let mut dungeon = vec![];
+		for n in 0..height { // iterate over the rows
 			let mut row = vec![];
 			// iterate over the tiles
-			for m in 0..size { row.push( Tile::new(w,Terrain_Type::Wall, m, n) ); }
-			rows.push(row);
+			for m in 0..width { 
+				match (m,n) {
+					(m,n) if m==0 || n==0 || m==width-1 || n==height-1 => row.push( TerrainType::Wall ),
+					_ => row.push( TerrainType::Floor ),
+				}
+			};
+			dungeon.push(row);
 		};
-	// Create a list of non-overlapping rooms
-	let between = Range::new(1,size-1-max_room);
-	let mut rng = rand::thread_rng();
-	let mut rooms = vec![];
-	for i in 0..room_attempts {
-		//First room originates at (1,1)
-		let (x,y) = match i {
-			0 => (1,1),
-			_ => (between.ind_sample(&mut rng),between.ind_sample(&mut rng))
-		};
-		let mut room = Rect::new_rand(x,y,min_room,max_room);
-		//Ensure that the rooms don't touch
-		if rooms.iter().fold(true,|acc,r| acc && !room.is_within_distance(r,1)) { rooms.push(room); }
-	}
-	let mut regions = vec![];
-	while rooms.len() > 1 {
-		let room = match rooms.pop() {
-			Some(r) => r,
-			None => unreachable!(),
-		};
-		//Select a random room
-		let between = Range::new(0,rooms.len());
-		let mut rng = rand::thread_rng();
-		let room2 = &rooms[between.ind_sample(&mut rng)];
-		//Create two rooms that form a corridor between the rooms
-		match room.x1 < room2.x1 {
-			true => regions.push(Rect::new(room.center().0,room.center().1,room2.x1-room.x1,0)),
-			false => regions.push(Rect::new(room2.center().0,room2.center().1,room.x1-room2.x1,0)),
-		};
-		match room.y1 < room2.y1 {
-			true => regions.push(Rect::new(room.center().0,room.center().1,0,room2.y1-room.y1)),
-			false => regions.push(Rect::new(room2.center().0,room2.center().1,0,room.y1-room2.y1)),
-		};
-		regions.push(room);
-	}
-	match rooms.pop() {
-		Some(room) => regions.push(room),
-		_ => unreachable!(),
-	}
-	// Carve out the rooms
-	for room in regions {
-		for (i,j) in room {
-			rows[j][i] = Tile::new(w,Terrain_Type::Floor, i, j);
+	/// Define recursive splitting function
+	/// This function takes a rectangle and splits it into two smaller rectangles
+	/// by drawing a line through it. It places up to 2 doors and 1 window on that line.
+	/// The recursion terminates once the rectangles reach size 3.
+	/// Lines are only drawn on even numbered rows/columns
+	fn rec_split(d: &mut Vec<Vec<TerrainType>>, x0:usize, x1:usize, y0:usize, y1:usize) {
+		use rand::distributions::{IndependentSample,Range};
+		use rand;
+
+		let width = x1-x0+1;
+		let height = y1-y0+1;
+		// First, exit if the rectangle is too small
+		if width <= 5 || height <= 5 { return; }
+		// Split rectangle across longer axis
+
+		match width < height {
+			true => { // draw horizontal line. First, select a random row
+				//Create rng
+				let range = Range::new(1,height/2-1);
+				let mut rng = rand::thread_rng();
+				let mut row = y0+4;
+				//Select a point.
+				let mut splitpoints = vec![];
+				for y in y0+2..y1-2 { if y%2==0 { splitpoints.push(y) } };
+				rand::thread_rng().shuffle(&mut splitpoints);
+				loop {
+					match splitpoints.pop() {
+						Some(y) => match (d[y][x0].clone(),d[y][x1].clone()) {
+							(TerrainType::Wall,TerrainType::Wall) => {
+								for x in x0..x1 { 
+									row=y; 
+									d[y][x] = TerrainType::Wall;
+								};
+								break; 
+							},
+							_ => (),
+						},
+						_ => return,
+					}
+				}
+				//Then we randomly place up to 2 doors and 1 window on the new wall
+				//First, get a vector of even locations that are free
+				let mut locations = vec![];
+				let mut terrains = vec![TerrainType::Door,TerrainType::Door,TerrainType::Window];
+				for x in x0+2..x1-2 { if x%2==0 { locations.push(x) } };
+				//Then shuffle it. Pop the first three elements (up to) and turn them into doors and a window
+				rand::thread_rng().shuffle(&mut locations);
+				for _ in 0..3 {
+					let terrain_type = match terrains.pop() {
+						Some(t) => t,
+						None => unreachable!(),
+					};
+					match locations.pop() {
+						Some(x) => d[row][x] = terrain_type,
+						None => break,
+					};
+				}
+				// Now call this function on each of the two smaller rooms
+				
+				rec_split(d, x0, x1, y0, row);
+				rec_split(d, x0, x1, row, y1);
+			}
+			false => { // draw vertical line. First, select a random column
+				//Create rng
+				let range = Range::new(1,width/2-1);
+				let mut rng = rand::thread_rng();
+				let mut column = x0 + 4;
+				//Select a point.
+				let mut splitpoints = vec![];
+				for x in x0+2..x1-2 { if x%2==0 { splitpoints.push(x) } };
+				rand::thread_rng().shuffle(&mut splitpoints);
+				loop {
+					match splitpoints.pop() {
+						Some(x) => match (d[y0][x].clone(),d[y1][x].clone()) {
+							(TerrainType::Wall,TerrainType::Wall) => {
+								for y in y0..y1 { 
+									column = x;  
+									d[y][x] = TerrainType::Wall;
+								};
+								break;
+							},
+							_ => (),
+						},
+						_ => return,
+					}
+				}
+				//Then we randomly place up to 2 doors and 1 window on the new wall
+				//First, get a vector of even locations that are free
+				let mut locations = vec![];
+				let mut terrains = vec![TerrainType::Door,TerrainType::Door,TerrainType::Window];
+				for y in y0+2..y1-2 { if y%2==0 { locations.push(y) } };
+				//Then shuffle it. Pop the first three elements (up to) and turn them into doors and a window
+				rand::thread_rng().shuffle(&mut locations);
+				for _ in 0..3 {
+					let terrain_type = match terrains.pop() {
+						Some(t) => t,
+						None => unreachable!(),
+					};
+					match locations.pop() {
+						Some(y) => d[y][column] = terrain_type,
+						None => break,
+					};
+				}
+				// Now call this function on each of the two smaller rooms
+				rec_split(d, x0, column, y0, y1);
+				rec_split(d, column, x1, y0, y1);
+			}
 		}
 	}
-	// Carve corridors between the rooms
-
-
-	rows
+	rec_split(&mut dungeon,0,width-1,0,height-1);
+	dungeon
 }
 
-pub enum Terrain_Type {
+
+pub enum TerrainType {
 	Wall,
 	Floor,
 	Window,
 	Door,
+}
+
+impl Clone for TerrainType {
+	fn clone(&self) -> TerrainType {
+		match *self {
+			TerrainType::Wall => TerrainType::Wall,
+			TerrainType::Floor => TerrainType::Floor,
+			TerrainType::Window => TerrainType::Window,
+			TerrainType::Door => TerrainType::Door,
+		}
+	}
 }
 
 /// A tile of a map
@@ -283,9 +370,9 @@ pub struct Tile {
 }
 
 impl Tile {
-	pub fn new(w: &PistonWindow, terrain: Terrain_Type, i:usize, j: usize) -> Tile {
+	pub fn new(w: &PistonWindow, terrain: TerrainType, i:usize, j: usize) -> Tile {
 		match terrain {
-			Terrain_Type::Wall => Tile {
+			TerrainType::Wall => Tile {
 				name : "wall".to_string(),
 				sprite: Sprite::new(w,"wall.png"),
 				passable : false,
@@ -293,14 +380,30 @@ impl Tile {
 			    i: i,
 			    j: j,
 			},
-			_ => Tile {
+			TerrainType::Floor => Tile {
 				name : "floor".to_string(),
 				sprite: Sprite::new(w,"floor.png"),
 				passable : true,
 				transvisible: true,
 			    i: i,
 			    j: j,
-			}
+			},
+			TerrainType::Door => Tile {
+				name : "door".to_string(),
+				sprite: Sprite::new(w,"door.png"),
+				passable : true,
+				transvisible: false,
+			    i: i,
+			    j: j,
+			},
+			TerrainType::Window => Tile {
+				name : "window".to_string(),
+				sprite: Sprite::new(w,"window.png"),
+				passable : false,
+				transvisible: true,
+			    i: i,
+			    j: j,
+			},
 		}
 	}
 	pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
