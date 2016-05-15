@@ -1,15 +1,15 @@
-// Dijkstra algorithm
+/*! Dijkstra algorithm
 
-// As input, accepts a vector of rows, where each row contains one of three values:
-// - Impassable
-// - Passable
-// - Goal
+ As input, accepts a vector of rows, where each row contains one of three values:
+ - Impassable
+ - Passable
+ - Goal
 
-// As output, it returns a dijkstra map object, where each row is one of two values:
-// - Impassable
-// - Value(int), where int is the number of steps from a goal
+ As output, it returns a dijkstra map object, where each row is one of two values:
+ - Impassable
+ - Value(int), where int is the number of steps from a goal
 
-// 
+*/
 
 pub enum DijkstraTile {
 	Impassable,
@@ -30,10 +30,7 @@ impl Clone for DijkstraTile {
 	}
 }
 
-pub struct DijkstraMap {
-	map: Vec<Vec<DijkstraTile>>,
-	//iter_coord: (usize,usize)
-}
+pub struct DijkstraMap { map: Vec<Vec<DijkstraTile>> }
 
 impl Clone for DijkstraMap {
 	fn clone(&self) -> DijkstraMap {
@@ -98,6 +95,14 @@ impl DijkstraMap {
 
 		// Return a dijkstra map
 		DijkstraMap { map: output}
+	}
+
+	/// Create a dijkstra map from an existing one by marking given coordinates as impassable
+	/// Makes it much faster to create new maps from existing ones
+	pub fn with_obstacles(&self, coordinates: Vec<(usize,usize)>) -> DijkstraMap {
+		let mut new_map = self.clone();
+		for (i,j) in coordinates { new_map.map[j][i] = DijkstraTile::Impassable }
+		new_map
 	}
 
 	// Function to determine where an object should next step on the map

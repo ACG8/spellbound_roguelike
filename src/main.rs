@@ -1,3 +1,8 @@
+/*! # Spellbound
+
+A roguelike game which uses dijkstra maps for ai and pathfinding.
+
+*/
 extern crate piston_window;
 extern crate gfx_device_gl;
 extern crate find_folder;
@@ -11,12 +16,9 @@ mod dungeon;
 mod sprite;
 mod dijkstra_map;
 
-//use piston_window::graphics::*;
-use piston_window::*;
-use game::Game;
-
 fn main() {
-    //use find_folder::Search;
+    use piston_window::*;
+    use game::Game;
     let window: PistonWindow = WindowSettings::new(
         "Spellbound",
         [600, 600]

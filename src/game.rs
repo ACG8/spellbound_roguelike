@@ -1,12 +1,8 @@
-///This file stores the code for the game object and player controls
+//!This file stores the code for the game object and player controls
 
-//use std::collections::HashMap;
-//use gfx_device_gl::Resources;
 use piston_window::*;
 use dungeon::*;
 use object::*;
-//use sprite::Sprite;
-
 
 enum Command {
     None,               //For when game is waiting for player to issue instruction
@@ -51,26 +47,36 @@ impl Game {
         }
     }
 
+    // Function to retrive coordinates of non-terrain obstacles in the dungeon
+    fn get_obstacles(&self) -> Vec<(usize,usize)> {
+        let mut output = vec![];
+        output.push((self.player.object.i,self.player.object.j));
+        for n in 0..self.creatures.len() { output.push((self.creatures[n].object.i,self.creatures[n].object.j))}
+        output
+    }
+
     // Function to retrieve a mutable reference to the creature that occupies a tile
+    /*
     fn get_creature<'a>(&'a self, i:usize,j:usize) -> Option<&'a Creature> {
         if self.player.coordinates() == (i,j) { return Some(& self.player) };
         for m in self.creatures.iter() {
             if m.coordinates() == (i,j) { return Some(m) };
         }
         None
-    }
+    }*/
 
     // Function to determine if the tile at the given coordinates is passable
     fn is_passable(&mut self, i:usize,j:usize) -> bool {
-        match self.get_creature(i,j) {
+        self.map.tile(i,j).is_passable()
+        /*match self.get_creature(i,j) {
             Some(_) => false,
             None => self.map.tile(i,j).is_passable(),
-        }
+        }*/
     }
 
     fn get_dijkstra_map(&self, goals: Vec<(usize,usize)>) -> DijkstraMap {
         use dijkstra_map::DijkstraTile;
-        //Create a map of dijkstra tiles
+        //Create a map of dijkstra tiles, ignoring the locations of creatures
         let mut map: Vec<Vec<DijkstraTile>> = self.map.grid.iter().map(
             |row| row.iter().map(
                 |tile| match tile.is_passable() {
@@ -146,7 +152,9 @@ impl Game {
             Command::Move(i,j) => {
                 let (i0,j0) = self.player.coordinates();
                 let (i1,j1) = ((i0 as isize + i) as usize, (j0 as isize + j) as usize);
-                // If the destination is passable, move there
+                // Stop if there are any obstacles in the way
+                for (i2,j2) in self.get_obstacles() { if i2==i1 && j2==j1 { return } }
+                // If the terrain is passable, move there
                 if self.is_passable(i1,j1) { self.player.object.mov(i,j) };
             },
             Command::Automove => {
@@ -164,12 +172,11 @@ impl Game {
             self.map.update_vision((self.player.object.i, self.player.object.j));
 
             // If there are fewer than 8 monsters, spawn a new one
-            if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",20,Behavior::Coward) }
+            if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",20,Behavior::Coward) };
 
-            //compute dijkstramaps that prioritize escaping from the player with getting out of LOS as a secondary goals
-            // fearmap tells the creature to run from the player
-            let fearmap = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)])*(-1.0);
-            // hidemap tells the creature to run toward unseen terrain
+            // Compute a dijkstramap containing the location of the player
+            let player_location = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
+            // Compute a dijkstramap with all the tiles the player cannot spawn_creature
             let mut goals = vec![];
             for j in 0..self.map.grid.len() {
                 for i in 0..self.map.grid[0].len() {
@@ -179,12 +186,14 @@ impl Game {
                     }
                 }
             }
-            let hidemap = self.map.get_dijkstra_map(goals)*(0.5);
-            //Have the creature automove using the sum of hidemap and fearmap
-            //Handle monster actions
+            let unseen_tiles = self.map.get_dijkstra_map(goals);
+            // Handle monster actions
             // I had difficulty here because I was iterating on self.creatures, but this was causing an error inside the loop because I had already borrowed creatures as immutable and was trying to borrow it again as mutable. I solved this by iterating over indices and only accessing a creture when absolutely necessary.
             for n in 0..self.creatures.len() {//creature in self.creatures.iter_mut() {
-                self.creatures[n].object.automove(&(&hidemap + &fearmap));
+                // Nyancats are cowardly, so they run away from the player and toward unseen tiles
+                let obstacles = self.get_obstacles();
+                let dmap = &(&player_location*(-1.0)+&unseen_tiles*(0.5)).with_obstacles(obstacles);
+                self.creatures[n].object.automove(&dmap);
             }
         }
     }

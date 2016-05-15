@@ -1,7 +1,6 @@
 //!Definitions for the entities making up the dungeon as a whole and its tiles
 
 use piston_window::*;
-//use rand::*;
 use gfx_device_gl::{Resources, Output, CommandBuffer};
 use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
