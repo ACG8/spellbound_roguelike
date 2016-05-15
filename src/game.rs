@@ -153,15 +153,16 @@ impl Game {
                 let (i0,j0) = self.player.coordinates();
                 let (i1,j1) = ((i0 as isize + i) as usize, (j0 as isize + j) as usize);
                 // Stop if there are any obstacles in the way
-                for (i2,j2) in self.get_obstacles() { if i2==i1 && j2==j1 { return } }
+                let mut exists_obstacle = false;
+                for (i2,j2) in self.get_obstacles() { if i2==i1 && j2==j1 { exists_obstacle=true; break; } }
                 // If the terrain is passable, move there
-                if self.is_passable(i1,j1) { self.player.object.mov(i,j) };
+                if self.is_passable(i1,j1) && !exists_obstacle { self.player.object.mov(i,j) };
             },
             Command::Automove => {
                 // Autoexplore the map by pressing "o"
                 let mut goals = vec![]; //Goals will be all the unexplored tiles on the map
                 for j in 0..self.map.grid.len() { for i in 0..self.map.grid[0].len() { if !self.map.tile(i,j).is_explored() { goals.push((i,j)) } } }
-                let unexploredmap = self.get_dijkstra_map(goals);
+                let unexploredmap = self.get_dijkstra_map(goals).with_obstacles(self.get_obstacles());
                 self.player.object.automove(&unexploredmap);
             },
             _ => player_acted = false,
@@ -174,9 +175,10 @@ impl Game {
             // If there are fewer than 8 monsters, spawn a new one
             if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",20,Behavior::Coward) };
 
-            // Compute a dijkstramap containing the location of the player
+            // Compute a dijkstramap containing the location of the player. We only need to do this once.
             let player_location = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
-            // Compute a dijkstramap with all the tiles the player cannot spawn_creature
+
+            // Compute a dijkstramap with all the tiles the player cannot see. Again, we only need to do this once.
             let mut goals = vec![];
             for j in 0..self.map.grid.len() {
                 for i in 0..self.map.grid[0].len() {
@@ -192,6 +194,8 @@ impl Game {
             for n in 0..self.creatures.len() {//creature in self.creatures.iter_mut() {
                 // Nyancats are cowardly, so they run away from the player and toward unseen tiles
                 let obstacles = self.get_obstacles();
+                // We will take the original maps (which do not change) and update them with obstacles.
+                // This is MUCH faster than creating a new map from scratch each time.
                 let dmap = &(&player_location*(-1.0)+&unseen_tiles*(0.5)).with_obstacles(obstacles);
                 self.creatures[n].object.automove(&dmap);
             }
