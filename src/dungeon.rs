@@ -62,15 +62,9 @@ pub fn los(map: &Map, x0:isize, y0:isize, x1:isize, y1:isize) -> Option<(usize,u
 
 use dijkstra_map::DijkstraMap;
 
-pub struct Map{
-	/// A vector of rows
-	pub grid : Vec< Vec< Tile > >,
-	size : usize,
-	level : usize,
-}
+pub struct Map{ pub grid : Vec< Vec< Tile > > } /// A vector of rows
 
 impl Map {
-	
 
 	pub fn new(w: &PistonWindow, size: usize) -> Map { //size indicates the width and height of the map.
 		let terrain = generate_fractal_dungeon(size,size);
@@ -84,8 +78,6 @@ impl Map {
 		}
 		Map{
 			grid: grid,
-			size: size,
-			level: 0,
 		}
 	}
 
@@ -138,77 +130,6 @@ impl Map {
 		DijkstraMap::new(&map)
 	}
 }
-
-struct Rect {
-	x1 : usize,
-	x2 : usize,
-	y1 : usize,
-	y2 : usize,
-	coord : (usize, usize), //for use in iteration
-}
-
-enum Dir { //enum for directions
-	Left,
-	Right,
-	Up,
-	Down,
-}
-
-impl Rect {
-	pub fn new(x:usize,y:usize,w:usize,h:usize) -> Rect {
-		Rect { x1: x, x2: x+w, y1: y, y2: y+h, coord: (x,y) }
-	}
-	pub fn new_rand(x:usize, y:usize, min:usize, max:usize) -> Rect { //create a rectangle with random size
-		use rand::distributions::{IndependentSample,Range};
-		use rand;
-		let between = Range::new(min,max);
-		let mut rng = rand::thread_rng();
-		let newrect = Rect {
-			x1: x,
-			y1: y,
-			x2: x + between.ind_sample(&mut rng),
-			y2: y + between.ind_sample(&mut rng),
-			coord: (x,y),
-		};
-		newrect
-	}
-
-	pub fn is_within_distance(&self, other: &Rect, distance: usize) -> bool {//checks whether two rects are within given distance apart
-		!( self.x1 > other.x2 + distance || other.x1 > self.x2 + distance || self.y1 > other.y2 + distance || other.y1 > self.y2 + distance )
-	}
-
-	pub fn center(&self) -> (usize,usize) {//returns center of the room
-		((self.x1+self.x2)/2,(self.y1+self.y2)/2)
-	}
-}
-
-impl Iterator for Rect {
-	//We iterate over x,y coordinates (x first)
-	type Item = (usize,usize);
-
-	fn next(&mut self) -> Option<(usize,usize)> {
-		let value = self.coord.clone();
-		match value {
-			(x,y) if x < self.x2 => {
-				self.coord = (x+1,y);
-				Some(value)
-			}
-			(_,y) if y < self.y2 => {
-				self.coord = (self.x1,y+1);
-				Some(value)
-			}
-			(x,y) if x == self.x2 && y == self.y2 => {
-				self.coord = (x+1,y);
-				Some(value)
-			}
-			_ => {
-				self.coord = (self.x1,self.y1);
-				None
-			},
-		}
-	}
-}
-
 
 fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 	//Initialize dungeon to walls with floor in middle

@@ -71,13 +71,12 @@ impl Game {
         DijkstraMap::new(&map)
     }
 
-    pub fn on_load(&mut self, w: &PistonWindow)  {
+    pub fn on_load(&mut self)  {
         //Initialize vision
         self.map.update_vision((self.player.object.i, self.player.object.j));        
     }
 
-    pub fn on_update(&mut self, upd: UpdateArgs) { //This function is called each turn
-        use dijkstra_map::DijkstraMap;
+    pub fn on_update(&mut self) { //This function is called each turn
         //Use a bool to check whether the player did anything
         let mut player_acted = true;
         //Handle player action

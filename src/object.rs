@@ -4,7 +4,6 @@ use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
 use dungeon::Map;
 use dijkstra_map::DijkstraMap;
-use game::*;
 
 pub enum Behavior {
     Player,

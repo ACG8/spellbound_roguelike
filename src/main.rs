@@ -25,12 +25,12 @@ fn main() {
     .build()
     .unwrap();
     let mut game = Game::new(&window);
-    game.on_load(&window);
+    game.on_load();
 
     for e in window {
         match e.event {
-            Some(Event::Update(upd)) => {
-                game.on_update(upd);
+            Some(Event::Update(_)) => {
+                game.on_update();
             }
             Some(Event::Render(ren)) => {
                 game.on_draw(ren, e);//, &mut glyphs);
