@@ -12,15 +12,13 @@ pub enum Behavior {
 
 pub struct Creature {
     pub object: Object,
-    pub hp: usize,
     pub ai: Behavior,
 }
 
 impl Creature {
-    pub fn new(pos:(usize,usize), w:&PistonWindow, graphic: &str, hp:usize, ai:Behavior) -> Creature {
+    pub fn new(pos:(usize,usize), w:&PistonWindow, graphic: &str, ai:Behavior) -> Creature {
         Creature {
             object: Object::new(pos,w,graphic),
-            hp: hp,
             ai: ai,
         }
     }
@@ -63,28 +61,5 @@ impl Object {
 
     pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d, map: &Map) {
         if self.visible(map) {self.sprite.render(self.x(),self.y(),g,view)}
-        /*
-        let square = rectangle::square(0.0, 0.0, 100.0);
-        let red = [1.0, 0.0, 0.0, 1.0];
-        match self.sprite {
-            None => { //TODO - replace with error sprite
-                rectangle(red, square, view.trans(self.x(), self.y()).trans(-50.0, -50.0), g); 
-            }
-            Some(ref sprite) => {
-                image(sprite, view.trans(self.x(), self.y()), g);//.trans(-50.0, -50.0), g);
-            }
-        }*/
-    }/*
-    pub fn set_sprite(&mut self, sprite: Texture<Resources>) {
-        /*let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
-        let sprite = assets.join(filename);
-        let sprite = Texture::from_path(
-                &mut *w.factory.borrow_mut(),
-                &sprite,
-                Flip::None,
-                &TextureSettings::new())
-                .unwrap();
-    */
-        self.sprite = Some(sprite);
-    }*/
+    }
 }

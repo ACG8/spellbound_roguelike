@@ -20,13 +20,13 @@ use dijkstra_map::DijkstraMap;
 impl Game {
     pub fn new(w:&PistonWindow) -> Game {
         Game { 
-            player : Creature::new((1,1),w,"player.png",20,Behavior::Player), 
+            player : Creature::new((1,1),w,"player.png",Behavior::Player), 
             map: Map::new(w,42),
-            creatures: vec![Creature::new((3,3),w,"nyancat.png",20,Behavior::Coward)]
+            creatures: vec![]
         }
     }
 
-    fn spawn_creature(&mut self, w:&PistonWindow,filename:&str,hp:usize,ai:Behavior) {
+    fn spawn_creature(&mut self, w:&PistonWindow,filename:&str,ai:Behavior) {
         use rand;
         use rand::*;
         // Create a list of odd coordinates (even coordinates may have walls)
@@ -39,7 +39,7 @@ impl Game {
         loop {
             match coordinates.pop() {
                 Some((i,j)) => if self.is_passable(i,j) {
-                    self.creatures.push( Creature::new((i,j), w, filename, hp, ai) );
+                    self.creatures.push( Creature::new((i,j), w, filename, ai) );
                     break;
                 },
                 None => break,
@@ -173,7 +173,7 @@ impl Game {
             self.map.update_vision((self.player.object.i, self.player.object.j));
 
             // If there are fewer than 8 monsters, spawn a new one
-            if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",20,Behavior::Coward) };
+            if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",Behavior::Coward) };
 
             // Compute a dijkstramap containing the location of the player. We only need to do this once.
             let player_location = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);
