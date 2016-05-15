@@ -349,7 +349,6 @@ impl Clone for TerrainType {
 
 /// A tile of a map
 pub struct Tile {
-	name : String,
 	sprite: Sprite,
 	passable : bool,	//can you move onto it?
 	transvisible: bool,	//can you see through it?
@@ -361,14 +360,13 @@ pub struct Tile {
 
 impl Tile {
 	pub fn new(w: &PistonWindow, terrain: TerrainType, i:usize, j: usize) -> Tile {
-		let (name,sprite,passable,transvisible) = match terrain {
-			TerrainType::Wall => ("wall".to_string(),Sprite::new(w,"wall.png"),false,false),
-			TerrainType::Floor => ("floor".to_string(),Sprite::new(w,"floor.png"),true,true),
-			TerrainType::Door => ("door".to_string(), Sprite::new(w,"door.png"), true, false),
-			TerrainType::Window => ("window".to_string(), Sprite::new(w,"window.png"), false, true),
+		let (sprite,passable,transvisible) = match terrain {
+			TerrainType::Wall => (Sprite::new(w,"wall.png"),false,false),
+			TerrainType::Floor => (Sprite::new(w,"floor.png"),true,true),
+			TerrainType::Door => (Sprite::new(w,"door.png"), true, false),
+			TerrainType::Window => (Sprite::new(w,"window.png"), false, true),
 			};
 		Tile {
-				name : name,
 				sprite: sprite,
 				passable : passable,
 				transvisible: transvisible,
@@ -377,50 +375,7 @@ impl Tile {
 			    i: i,
 			    j: j,
 		}
-	}/*
-		match terrain {
-			TerrainType::Wall => Tile {
-				name : "wall".to_string(),
-				sprite: Sprite::new(w,"wall.png"),
-				passable : false,
-				transvisible: false,
-				visible: false,
-				explored: false,
-			    i: i,
-			    j: j,
-			},
-			TerrainType::Floor => Tile {
-				name : "floor".to_string(),
-				sprite: Sprite::new(w,"floor.png"),
-				passable : true,
-				transvisible: true,
-				visible: false,
-				explored: false,
-			    i: i,
-			    j: j,
-			},
-			TerrainType::Door => Tile {
-				name : "door".to_string(),
-				sprite: Sprite::new(w,"door.png"),
-				passable : true,
-				transvisible: false,
-				visible: false,
-				explored: false,
-			    i: i,
-			    j: j,
-			},
-			TerrainType::Window => Tile {
-				name : "window".to_string(),
-				sprite: Sprite::new(w,"window.png"),
-				passable : false,
-				transvisible: true,
-				visible: false,
-				explored: false,
-			    i: i,
-			    j: j,
-			},
-		}
-	}*/
+	}
 	pub fn render(&self, g: &mut GfxGraphics<Resources, CommandBuffer<Resources>, Output>, view: math::Matrix2d) {
 		//if is inlineofsight
 		if self.visible { self.sprite.render(self.x(),self.y(),g,view) }
@@ -440,4 +395,5 @@ impl Tile {
 
     pub fn is_passable(&self) -> bool {self.passable}
     pub fn is_transvisible(&self) -> bool {self.transvisible}
+    pub fn is_explored(&self) -> bool {self.explored}
 }

@@ -18,37 +18,84 @@ pub struct Game {
     player: Creature,
     command: Command,
     map: Map,
-    monsters: Vec<Creature>,
-    //graphics: HashMap<&'static str,Texture<Resources>>, //Game loads all graphics on startup then stores them here.
+    creatures: Vec<Creature>,
 }
 
-
-
+use dijkstra_map::DijkstraMap;
 impl Game {
     pub fn new(w:&PistonWindow) -> Game {
         Game { 
-            player : Creature::new("Player",(1,1),w,"player.png",20,Behavior::Player), 
+            player : Creature::new((1,1),w,"player.png",20,Behavior::Player), 
             command : Command::None,
             map: Map::new(w,42),
-            monsters: vec![Creature::new("Nyancat",(3,3),w,"nyancat.png",20,Behavior::Coward)]
+            creatures: vec![Creature::new((3,3),w,"nyancat.png",20,Behavior::Coward)]
         }
+    }
+
+    // Function to retrieve a mutable reference to the creature that occupies a tile
+    fn get_creature<'a>(&'a self, i:usize,j:usize) -> Option<&'a Creature> {
+        if self.player.coordinates() == (i,j) { return Some(& self.player) };
+        for m in self.creatures.iter() {
+            if m.coordinates() == (i,j) { return Some(m) };
+        }
+        None
+    }
+
+    // Function to determine if the tile at the given coordinates is passable
+    fn is_passable(&mut self, i:usize,j:usize) -> bool {
+        match self.get_creature(i,j) {
+            Some(_) => false,
+            None => self.map.tile(i,j).is_passable(),
+        }
+    }
+
+    fn get_dijkstra_map(&self, goals: Vec<(usize,usize)>) -> DijkstraMap {
+        use dijkstra_map::DijkstraTile;
+        //Create a map of dijkstra tiles
+        let mut map: Vec<Vec<DijkstraTile>> = self.map.grid.iter().map(
+            |row| row.iter().map(
+                |tile| match tile.is_passable() {
+                    true => DijkstraTile::Passable,
+                    false => DijkstraTile::Impassable,
+                }
+            ).collect()
+        ).collect();
+        //Add the goals. Only goals on passable ground are added.
+        for (i,j) in goals {
+            match map[j][i] {
+                DijkstraTile::Passable => map[j][i] = DijkstraTile::Goal,
+                _ => (),
+            }
+        };
+        //Construct and return the dijkstra map
+        DijkstraMap::new(&map)
     }
 
     pub fn on_load(&mut self, w: &PistonWindow)  {
         //Initialize vision
         self.map.update_vision((self.player.object.i, self.player.object.j));        
     }
+
     pub fn on_update(&mut self, upd: UpdateArgs) { //This function is called each turn
         use dijkstra_map::DijkstraMap;
         //Use a bool to check whether the player did anything
         let mut player_acted = true;
         //Handle player action
         match self.command {
-            Command::Move(i,j) => self.player.object.mov(&self.map,i,j),
+            // Attempt to move in given direction
+            Command::Move(i,j) => {
+                let (i0,j0) = self.player.coordinates();
+                let (i1,j1) = ((i0 as isize + i) as usize, (j0 as isize + j) as usize);
+                // If the destination is passable, move there
+                if self.is_passable(i1,j1) { self.player.object.mov(i,j) };
+            },
             Command::Automove => {
-                let dmap = self.map.get_dijkstra_map(vec![(1,1)]);
-                self.player.object.automove(&dmap)
-            }, //for testing dijkstra
+                // Autoexplore the map by pressing "o"
+                let mut goals = vec![]; //Goals will be all the unexplored tiles on the map
+                for j in 0..self.map.grid.len() { for i in 0..self.map.grid[0].len() { if !self.map.tile(i,j).is_explored() { goals.push((i,j)) } } }
+                let unexploredmap = self.get_dijkstra_map(goals);
+                self.player.object.automove(&unexploredmap);
+            },
             _ => player_acted = false,
         };
 
@@ -57,39 +104,28 @@ impl Game {
             self.command = Command::None;
             // First, recompute vision
             self.map.update_vision((self.player.object.i, self.player.object.j));
-            //local fear map
-            let dmapshort = self.map.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)])*(-2.0);
-            //make map of unseen squares
-            let mut goals = vec![];
-            for j in 0..self.map.grid.len() {
-                for i in 0..self.map.grid[0].len() {
-                    match los(&self.map,self.player.object.i as isize,self.player.object.j as isize,i as isize,j as isize) {
-                        Some((x,y)) if x==i && y==j => (),
-                        _ => goals.push((i,j)),
-                    }
-                }
-            }
-            //make map of locations 10 tiles away from player
-            let dmapfov= self.map.get_dijkstra_map(goals)*0.5;
-
-            let mut goals = vec![];
-            for j in 0..self.map.grid.len() {
-                for i in 0..self.map.grid[0].len() {
-                    if (i as isize - self.player.object.i as isize).abs() >= 10 && (j as isize - self.player.object.j as isize).abs() >= 6 {goals.push((i,j))}
-                }
-            }
-            let dmaplong = self.map.get_dijkstra_map(goals)*0.5;
-
-            let dmap = dmapshort+dmaplong+dmapfov;
 
             //Handle monster actions
-            for monster in self.monsters.iter_mut() {
-            //for testing, create a dijkstra map with the player at the center
-            monster.object.automove(&dmap);
-
-        } //Clear the active command
-
-        
+            // I had difficulty here because I was iterating on self.creatures, but this was causing an error inside the loop because I had already borrowed creatures as immutable and was trying to borrow it again as mutable. I solved this by iterating over indices and only accessing a creture when absolutely necessary.
+            for n in 0..self.creatures.len() {//creature in self.creatures.iter_mut() {
+                //let creature = &mut self.creatures[n];
+                //compute dijkstramaps that prioritize escaping from the player with getting out of LOS as a secondary goals
+                // fearmap tells the creature to run from the player
+                let fearmap = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)])*(-1.0);
+                // hidemap tells the creature to run toward unseen terrain
+                let mut goals = vec![];
+                for j in 0..self.map.grid.len() {
+                    for i in 0..self.map.grid[0].len() {
+                        match los(&self.map,self.player.object.i as isize,self.player.object.j as isize,i as isize,j as isize) {
+                            Some((x,y)) if x==i && y==j => (),
+                            _ => goals.push((i,j)),
+                        }
+                    }
+                }
+                let hidemap = self.map.get_dijkstra_map(goals)*(0.5);
+                //Have the creature automove using the sum of hidemap and fearmap
+                self.creatures[n].object.automove(&(hidemap + fearmap));
+            } //Clear the active command
         }
 
     }
@@ -98,18 +134,16 @@ impl Game {
         //use piston_window::*;
         e.draw_2d(|c, g| {
             clear([0.0, 0.0, 0.0, 1.0], g);
-            //let view = c
-            //let view = c.transform.trans(0.0,0.0);
-            //let center = c.transform.trans((ren.width / 2) as f64, (ren.height / 2) as f64);
             let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
-            //self.player.render(g, center);
 
+            // render the map
             self.map.render(g, view);
+            //render the player
             self.player.object.render(g, view, &self.map);
 
-            //render monsters
-            for monster in self.monsters.iter() {
-                monster.object.render(g,view,&self.map);
+            //render other creatures
+            for creature in self.creatures.iter() {
+                creature.object.render(g,view,&self.map);
             }
         });
     }
