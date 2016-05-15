@@ -4,6 +4,7 @@ use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
 use dungeon::Map;
 use dijkstra_map::DijkstraMap;
+use game::*;
 
 pub enum Behavior {
     Player,
@@ -13,21 +14,22 @@ pub enum Behavior {
 pub struct Creature {
     pub object: Object,
     pub hp: usize,
-    ai: Behavior,
+    pub ai: Behavior,
 }
 
 impl Creature {
-    pub fn new(name: &str, pos:(usize,usize), w:&PistonWindow, graphic: &str, hp:usize, ai:Behavior) -> Creature {
+    pub fn new(pos:(usize,usize), w:&PistonWindow, graphic: &str, hp:usize, ai:Behavior) -> Creature {
         Creature {
-            object: Object::new(name,pos,w,graphic),
+            object: Object::new(pos,w,graphic),
             hp: hp,
             ai: ai,
         }
     }
+
+    pub fn coordinates(&self) -> (usize,usize) {self.object.coordinates()}
 }
 
 pub struct Object {
-    name: String,
     pub i: usize,
     pub j: usize,
     sprite: Sprite,
@@ -36,21 +38,18 @@ pub struct Object {
 #[allow(dead_code)]
 impl Object {
 
-    pub fn new(name:&str, pos:(usize,usize), w:&PistonWindow, filename: &str) -> Object {
-        Object {name:name.to_string(),i : pos.0, j: pos.1, sprite: Sprite::new(w,filename)}
+    pub fn new(pos:(usize,usize), w:&PistonWindow, filename: &str) -> Object {
+        Object {i : pos.0, j: pos.1, sprite: Sprite::new(w,filename)}
     }
     //Functions to translate between discrete and continuous coordinates. One cell is 32 units.
     pub fn x(&self) -> f64 { (self.i as f64)*32.0 }
     pub fn y(&self) -> f64 { (self.j as f64)*32.0 }
 
-    pub fn mov(&mut self, map: &Map, i:isize, j:isize) {
-        let i2 = (self.i as isize + i) as usize;
-        let j2 = (self.j as isize + j) as usize;
+    pub fn coordinates(&self) -> (usize,usize) {(self.i,self.j)}
 
-        if map.tile(i2,j2).is_passable() {
-            self.i = i2;
-            self.j = j2;
-        }
+    pub fn mov(&mut self, i:isize, j:isize) {
+        self.i = (self.i as isize + i) as usize;
+        self.j = (self.j as isize + j) as usize;
     }
 
     pub fn visible(&self, map: &Map) -> bool {
