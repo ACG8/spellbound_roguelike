@@ -193,10 +193,9 @@ impl Game {
             // I had difficulty here because I was iterating on self.creatures, but this was causing an error inside the loop because I had already borrowed creatures as immutable and was trying to borrow it again as mutable. I solved this by iterating over indices and only accessing a creture when absolutely necessary.
             for n in 0..self.creatures.len() {//creature in self.creatures.iter_mut() {
                 // Nyancats are cowardly, so they run away from the player and toward unseen tiles
-                let obstacles = self.get_obstacles();
                 // We will take the original maps (which do not change) and update them with obstacles.
                 // This is MUCH faster than creating a new map from scratch each time.
-                let dmap = &(&player_location*(-1.0)+&unseen_tiles*(0.5)).with_obstacles(obstacles);
+                let dmap = &(&player_location*(-1.0)+&unseen_tiles*(0.5)).with_obstacles(self.get_obstacles());
                 self.creatures[n].object.automove(&dmap);
             }
         }
