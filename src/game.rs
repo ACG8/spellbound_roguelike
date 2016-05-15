@@ -16,7 +16,6 @@ enum Command {
 
 pub struct Game {
     player: Creature,
-    command: Command,
     map: Map,
     creatures: Vec<Creature>,
 }
@@ -26,7 +25,6 @@ impl Game {
     pub fn new(w:&PistonWindow) -> Game {
         Game { 
             player : Creature::new((1,1),w,"player.png",20,Behavior::Player), 
-            command : Command::None,
             map: Map::new(w,42),
             creatures: vec![Creature::new((3,3),w,"nyancat.png",20,Behavior::Coward)]
         }
@@ -76,11 +74,55 @@ impl Game {
         self.map.update_vision((self.player.object.i, self.player.object.j));        
     }
 
-    pub fn on_update(&mut self) { //This function is called each turn
+    pub fn on_draw(&mut self, ren: RenderArgs, e: PistonWindow) {//, glyphs: &mut Glyphs) {
+        //use find_folder::Search;
+        //use piston_window::*;
+        e.draw_2d(|c, g| {
+            clear([0.0, 0.0, 0.0, 1.0], g);
+            let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
+
+            // render the map
+            self.map.render(g, view);
+            //render the player
+            self.player.object.render(g, view, &self.map);
+
+            //render other creatures
+            for creature in self.creatures.iter() {
+                creature.object.render(g,view,&self.map);
+            }
+        });
+    }
+    pub fn on_input(&mut self, inp: Input) {
+        let mut command = Command::None;
+        match inp {
+            Input::Press(key) => {
+                match key {
+                    //Arrow keys
+                    Button::Keyboard(Key::Up) => command = Command::Move(0,-1),
+                    Button::Keyboard(Key::Down) => command = Command::Move(0,1),
+                    Button::Keyboard(Key::Left) => command = Command::Move(-1,0),
+                    Button::Keyboard(Key::Right) => command = Command::Move(1,0),
+                    //Numpad keys
+                    Button::Keyboard(Key::NumPad1) => command = Command::Move(-1,1),
+                    Button::Keyboard(Key::NumPad2) => command = Command::Move(0,1),
+                    Button::Keyboard(Key::NumPad3) => command = Command::Move(1,1),
+                    Button::Keyboard(Key::NumPad4) => command = Command::Move(-1,-0),
+                    Button::Keyboard(Key::NumPad5) => command = Command::Move(0,0),
+                    Button::Keyboard(Key::NumPad6) => command = Command::Move(1,0),
+                    Button::Keyboard(Key::NumPad7) => command = Command::Move(-1,-1),
+                    Button::Keyboard(Key::NumPad8) => command = Command::Move(0,-1),
+                    Button::Keyboard(Key::NumPad9) => command = Command::Move(1,-1),
+                    //Automated movement
+                    Button::Keyboard(Key::O) => command = Command::Automove,
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
         //Use a bool to check whether the player did anything
         let mut player_acted = true;
         //Handle player action
-        match self.command {
+        match command {
             // Attempt to move in given direction
             Command::Move(i,j) => {
                 let (i0,j0) = self.player.coordinates();
@@ -99,8 +141,6 @@ impl Game {
         };
 
         if player_acted {
-            // Time will now advance by one step.
-            self.command = Command::None;
             // First, recompute vision
             self.map.update_vision((self.player.object.i, self.player.object.j));
 
@@ -124,53 +164,7 @@ impl Game {
                 let hidemap = self.map.get_dijkstra_map(goals)*(0.5);
                 //Have the creature automove using the sum of hidemap and fearmap
                 self.creatures[n].object.automove(&(hidemap + fearmap));
-            } //Clear the active command
-        }
-
-    }
-    pub fn on_draw(&mut self, ren: RenderArgs, e: PistonWindow) {//, glyphs: &mut Glyphs) {
-        //use find_folder::Search;
-        //use piston_window::*;
-        e.draw_2d(|c, g| {
-            clear([0.0, 0.0, 0.0, 1.0], g);
-            let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
-
-            // render the map
-            self.map.render(g, view);
-            //render the player
-            self.player.object.render(g, view, &self.map);
-
-            //render other creatures
-            for creature in self.creatures.iter() {
-                creature.object.render(g,view,&self.map);
             }
-        });
-    }
-    pub fn on_input(&mut self, inp: Input) {
-        match inp {
-            Input::Press(key) => {
-                match key {
-                    //Arrow keys
-                    Button::Keyboard(Key::Up) => self.command = Command::Move(0,-1),
-                    Button::Keyboard(Key::Down) => self.command = Command::Move(0,1),
-                    Button::Keyboard(Key::Left) => self.command = Command::Move(-1,0),
-                    Button::Keyboard(Key::Right) => self.command = Command::Move(1,0),
-                    //Numpad keys
-                    Button::Keyboard(Key::NumPad1) => self.command = Command::Move(-1,1),
-                    Button::Keyboard(Key::NumPad2) => self.command = Command::Move(0,1),
-                    Button::Keyboard(Key::NumPad3) => self.command = Command::Move(1,1),
-                    Button::Keyboard(Key::NumPad4) => self.command = Command::Move(-1,-0),
-                    Button::Keyboard(Key::NumPad5) => self.command = Command::Move(0,0),
-                    Button::Keyboard(Key::NumPad6) => self.command = Command::Move(1,0),
-                    Button::Keyboard(Key::NumPad7) => self.command = Command::Move(-1,-1),
-                    Button::Keyboard(Key::NumPad8) => self.command = Command::Move(0,-1),
-                    Button::Keyboard(Key::NumPad9) => self.command = Command::Move(1,-1),
-                    //Automated movement
-                    Button::Keyboard(Key::O) => self.command = Command::Automove,
-                    _ => {}
-                }
-            }
-            _ => {}
         }
     }
 }

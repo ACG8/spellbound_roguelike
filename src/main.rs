@@ -29,9 +29,6 @@ fn main() {
 
     for e in window {
         match e.event {
-            Some(Event::Update(_)) => {
-                game.on_update();
-            }
             Some(Event::Render(ren)) => {
                 game.on_draw(ren, e);//, &mut glyphs);
             }
