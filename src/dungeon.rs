@@ -1,7 +1,7 @@
 //!Definitions for the entities making up the dungeon as a whole and its tiles
 
 use piston_window::*;
-use rand::*;
+//use rand::*;
 use gfx_device_gl::{Resources, Output, CommandBuffer};
 use gfx_graphics::GfxGraphics;
 use sprite::Sprite;
@@ -152,6 +152,7 @@ fn generate_fractal_dungeon(width:usize,height:usize) -> Vec<Vec<TerrainType>> {
 	/// Lines are only drawn on even numbered rows/columns
 	fn rec_split(d: &mut Vec<Vec<TerrainType>>, x0:usize, x1:usize, y0:usize, y1:usize) {
 		use rand;
+		use rand::*;
 		let (width,height) = (x1-x0+1,y1-y0+1);
 		let mut terrains = vec![TerrainType::Window,TerrainType::Door,TerrainType::Door];
 		let mut locations = vec![];

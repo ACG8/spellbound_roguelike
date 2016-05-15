@@ -30,6 +30,27 @@ impl Game {
         }
     }
 
+    fn spawn_creature(&mut self, w:&PistonWindow,filename:&str,hp:usize,ai:Behavior) {
+        use rand;
+        use rand::*;
+        // Create a list of odd coordinates (even coordinates may have walls)
+        let mut coordinates = vec![];
+        for j in 0..self.map.grid.len() { for i in 0..self.map.grid[0].len() { if i%2==1 && j%2==1 { coordinates.push((i,j)) } } }
+        // Shuffle the list
+        rand::thread_rng().shuffle(&mut coordinates);
+
+        //Now go through the list until you find a place to spawn the creature or run out of coordinates.
+        loop {
+            match coordinates.pop() {
+                Some((i,j)) => if self.is_passable(i,j) {
+                    self.creatures.push( Creature::new((i,j), w, filename, hp, ai) );
+                    break;
+                },
+                None => break,
+            }
+        }
+    }
+
     // Function to retrieve a mutable reference to the creature that occupies a tile
     fn get_creature<'a>(&'a self, i:usize,j:usize) -> Option<&'a Creature> {
         if self.player.coordinates() == (i,j) { return Some(& self.player) };
@@ -75,8 +96,6 @@ impl Game {
     }
 
     pub fn on_draw(&mut self, ren: RenderArgs, e: PistonWindow) {//, glyphs: &mut Glyphs) {
-        //use find_folder::Search;
-        //use piston_window::*;
         e.draw_2d(|c, g| {
             clear([0.0, 0.0, 0.0, 1.0], g);
             let view = c.transform.trans((ren.width / 2) as f64-self.player.object.x(),(ren.height / 2) as f64-self.player.object.y());
@@ -92,10 +111,10 @@ impl Game {
             }
         });
     }
-    pub fn on_input(&mut self, inp: Input) {
+    pub fn on_input(&mut self, inp: &Input, w: &PistonWindow) {
         let mut command = Command::None;
         match inp {
-            Input::Press(key) => {
+            &Input::Press(key) => {
                 match key {
                     //Arrow keys
                     Button::Keyboard(Key::Up) => command = Command::Move(0,-1),
@@ -144,26 +163,28 @@ impl Game {
             // First, recompute vision
             self.map.update_vision((self.player.object.i, self.player.object.j));
 
+            // If there are fewer than 8 monsters, spawn a new one
+            if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",20,Behavior::Coward) }
+
+            //compute dijkstramaps that prioritize escaping from the player with getting out of LOS as a secondary goals
+            // fearmap tells the creature to run from the player
+            let fearmap = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)])*(-1.0);
+            // hidemap tells the creature to run toward unseen terrain
+            let mut goals = vec![];
+            for j in 0..self.map.grid.len() {
+                for i in 0..self.map.grid[0].len() {
+                    match los(&self.map,self.player.object.i as isize,self.player.object.j as isize,i as isize,j as isize) {
+                        Some((x,y)) if x==i && y==j => (),
+                        _ => goals.push((i,j)),
+                    }
+                }
+            }
+            let hidemap = self.map.get_dijkstra_map(goals)*(0.5);
+            //Have the creature automove using the sum of hidemap and fearmap
             //Handle monster actions
             // I had difficulty here because I was iterating on self.creatures, but this was causing an error inside the loop because I had already borrowed creatures as immutable and was trying to borrow it again as mutable. I solved this by iterating over indices and only accessing a creture when absolutely necessary.
             for n in 0..self.creatures.len() {//creature in self.creatures.iter_mut() {
-                //let creature = &mut self.creatures[n];
-                //compute dijkstramaps that prioritize escaping from the player with getting out of LOS as a secondary goals
-                // fearmap tells the creature to run from the player
-                let fearmap = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)])*(-1.0);
-                // hidemap tells the creature to run toward unseen terrain
-                let mut goals = vec![];
-                for j in 0..self.map.grid.len() {
-                    for i in 0..self.map.grid[0].len() {
-                        match los(&self.map,self.player.object.i as isize,self.player.object.j as isize,i as isize,j as isize) {
-                            Some((x,y)) if x==i && y==j => (),
-                            _ => goals.push((i,j)),
-                        }
-                    }
-                }
-                let hidemap = self.map.get_dijkstra_map(goals)*(0.5);
-                //Have the creature automove using the sum of hidemap and fearmap
-                self.creatures[n].object.automove(&(hidemap + fearmap));
+                self.creatures[n].object.automove(&(&hidemap + &fearmap));
             }
         }
     }

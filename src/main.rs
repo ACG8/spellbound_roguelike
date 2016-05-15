@@ -30,10 +30,10 @@ fn main() {
     for e in window {
         match e.event {
             Some(Event::Render(ren)) => {
-                game.on_draw(ren, e);//, &mut glyphs);
+                game.on_draw(ren, e);
             }
-            Some(Event::Input(inp)) => {
-                game.on_input(inp);
+            Some(Event::Input(ref inp)) => {
+                game.on_input(inp, &e);
             }
             _ => {
 
