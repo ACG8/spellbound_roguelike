@@ -7,7 +7,7 @@ use object::*;
 enum Command {
     None,               //For when game is waiting for player to issue instruction
     Move(isize,isize),
-    Automove, //testing dijkstra map
+    Automove,
 }
 
 pub struct Game {
@@ -54,16 +54,6 @@ impl Game {
         for n in 0..self.creatures.len() { output.push((self.creatures[n].object.i,self.creatures[n].object.j))}
         output
     }
-
-    // Function to retrieve a mutable reference to the creature that occupies a tile
-    /*
-    fn get_creature<'a>(&'a self, i:usize,j:usize) -> Option<&'a Creature> {
-        if self.player.coordinates() == (i,j) { return Some(& self.player) };
-        for m in self.creatures.iter() {
-            if m.coordinates() == (i,j) { return Some(m) };
-        }
-        None
-    }*/
 
     // Function to determine if the tile at the given coordinates is passable
     fn is_passable(&mut self, i:usize,j:usize) -> bool {
@@ -173,7 +163,7 @@ impl Game {
             self.map.update_vision((self.player.object.i, self.player.object.j));
 
             // If there are fewer than 8 monsters, spawn a new one
-            if self.creatures.len() < 8 { self.spawn_creature(w,"nyancat.png",Behavior::Coward) };
+            if self.creatures.len() < 20 { self.spawn_creature(w,"nyancat.png",Behavior::Coward) };
 
             // Compute a dijkstramap containing the location of the player. We only need to do this once.
             let player_location = self.get_dijkstra_map(vec![(self.player.object.i,self.player.object.j)]);

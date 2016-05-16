@@ -32,7 +32,6 @@ pub struct Object {
     sprite: Sprite,
 }
 
-#[allow(dead_code)]
 impl Object {
 
     pub fn new(pos:(usize,usize), w:&PistonWindow, filename: &str) -> Object {
